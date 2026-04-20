@@ -1,0 +1,37 @@
+{
+  "name": "sql-data-modeler",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/react": "^5.0.3",
+    "@monaco-editor/react": "^4.7.0",
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@xyflow/react": "^12.10.2",
+    "astro": "^6.1.7",
+    "dagre": "^0.8.5",
+    "elkjs": "^0.11.1",
+    "html-to-image": "^1.11.13",
+    "lucide-react": "^1.8.0",
+    "monaco-editor": "^0.55.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tailwindcss": "^4.2.2",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.8",
+    "@types/dagre": "^0.7.54",
+    "typescript": "^5.9.3"
+  }
+}

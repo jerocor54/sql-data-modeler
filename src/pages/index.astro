@@ -1,0 +1,39 @@
+---
+import '../styles/global.css';
+import AppRoot from '../components/AppRoot';
+---
+
+<html lang="es" data-theme="deepblue">
+	<head>
+		<meta charset="utf-8" />
+		<script is:inline>
+			(() => {
+				const storageKey = 'sql-data-modeler-store-v1';
+				try {
+					const raw = localStorage.getItem(storageKey);
+					if (!raw) {
+						document.documentElement.dataset.theme = 'deepblue';
+						return;
+					}
+					const parsed = JSON.parse(raw);
+					const theme = parsed?.state?.theme;
+					if (theme === 'light' || theme === 'dark' || theme === 'deepblue') {
+						document.documentElement.dataset.theme = theme;
+						return;
+					}
+					document.documentElement.dataset.theme = 'deepblue';
+				} catch {
+					document.documentElement.dataset.theme = 'deepblue';
+				}
+			})();
+		</script>
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" href="/favicon.ico" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>SQL Data Modeler</title>
+	</head>
+	<body>
+		<AppRoot client:load />
+	</body>
+</html>

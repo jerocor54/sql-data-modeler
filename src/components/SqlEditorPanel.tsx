@@ -1,0 +1,498 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Editor, loader, type BeforeMount, type OnMount } from '@monaco-editor/react';
+import { Download, FolderOpen, MoreHorizontal, Save } from 'lucide-react';
+import { downloadTextFile, getCursorIndexForLine } from '../lib/download';
+import type { AmbiguousReference, Dialect, ThemeMode } from '../types/erd';
+import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+
+interface SqlEditorPanelProps {
+  sqlText: string;
+  onSqlChange: (value: string) => void;
+  onGoToLine?: number | null;
+  onGoToLineHandled: () => void;
+  errors: string[];
+  warnings: string[];
+  ambiguousReferences: AmbiguousReference[];
+  onAmbiguousReferenceSelect: (reference: AmbiguousReference) => void;
+  dialect: Dialect;
+  onDialectChange: (dialect: Dialect) => void;
+  theme: ThemeMode;
+  themeReady: boolean;
+}
+
+function getEditorTheme(theme: ThemeMode): string {
+  if (theme === 'light') return 'vs';
+  if (theme === 'dark') return 'vs-dark';
+  return 'sql-deepblue';
+}
+
+function readDocumentTheme(): ThemeMode | null {
+  if (typeof document === 'undefined') return null;
+
+  const theme = document.documentElement.dataset.theme;
+  if (theme === 'light' || theme === 'dark' || theme === 'deepblue') return theme;
+  return null;
+}
+
+function defineEditorThemes(monaco: Parameters<OnMount>[1]) {
+  monaco.editor.defineTheme('sql-deepblue', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'keyword', foreground: '58A6FF' },
+      { token: 'number', foreground: '79C0FF' },
+      { token: 'string', foreground: 'A5D6FF' },
+      { token: 'comment', foreground: '7D97C6' },
+    ],
+    colors: {
+      'editor.background': '#0C1636',
+      'editor.foreground': '#D8E7FF',
+      'editorLineNumber.foreground': '#6B89BF',
+      'editorLineNumber.activeForeground': '#9FC2FF',
+      'editor.selectionBackground': '#2F64D966',
+      'editor.inactiveSelectionBackground': '#2F64D944',
+      'editorCursor.foreground': '#9BC3FF',
+      'editor.findMatchBackground': '#f59e0b55',
+      'editor.findMatchHighlightBackground': '#f59e0b33',
+    },
+  });
+}
+
+function getMonacoSelectionCharacterCount(editor: Parameters<OnMount>[0]): number {
+  const model = editor.getModel();
+  if (!model) return 0;
+
+  const selections = editor.getSelections() ?? [];
+
+  return selections.reduce((total, selection) => {
+    if (selection.isEmpty()) return total;
+    return total + model.getValueInRange(selection).length;
+  }, 0);
+}
+
+function getTextareaSelectionCharacterCount(textarea: HTMLTextAreaElement | null): number {
+  if (!textarea) return 0;
+  if (textarea.selectionStart === textarea.selectionEnd) return 0;
+  return textarea.value.slice(textarea.selectionStart, textarea.selectionEnd).length;
+}
+
+export default function SqlEditorPanel({
+  sqlText,
+  onSqlChange,
+  onGoToLine,
+  onGoToLineHandled,
+  errors,
+  warnings,
+  ambiguousReferences,
+  onAmbiguousReferenceSelect,
+  dialect,
+  onDialectChange,
+  theme,
+  themeReady,
+}: SqlEditorPanelProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+  const fallbackTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const actionsTriggerRef = useRef<HTMLButtonElement>(null);
+  const [openActionsMenu, setOpenActionsMenu] = useState(false);
+  const [editorReady, setEditorReady] = useState(false);
+  const [useFallbackEditor, setUseFallbackEditor] = useState(false);
+  const [resolvedTheme, setResolvedTheme] = useState<ThemeMode>(() => readDocumentTheme() ?? theme);
+  const [selectionCharacterCount, setSelectionCharacterCount] = useState<number | null>(null);
+
+  const editorTheme = useMemo(() => getEditorTheme(resolvedTheme), [resolvedTheme]);
+  const genericWarnings = useMemo(
+    () => warnings.filter((warning) => !warning.startsWith('Referencia ambigua:')),
+    [warnings],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const setupMonacoLoader = async () => {
+      if (typeof window === 'undefined') return;
+
+      try {
+        self.MonacoEnvironment = {
+          getWorker() {
+            return new editorWorker();
+          },
+        };
+
+        const monaco = await import('monaco-editor');
+        if (cancelled) return;
+        defineEditorThemes(monaco);
+        loader.config({ monaco });
+      } catch {
+        if (!cancelled) setUseFallbackEditor(true);
+      }
+    };
+
+    setupMonacoLoader();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!themeReady) {
+      const documentTheme = readDocumentTheme();
+      if (documentTheme) setResolvedTheme(documentTheme);
+      return;
+    }
+
+    setResolvedTheme(theme);
+  }, [theme, themeReady]);
+
+  useEffect(() => {
+    if (!openActionsMenu) return;
+
+    const closeMenu = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+
+      const clickedMenu = actionsMenuRef.current?.contains(target);
+      const clickedTrigger = actionsTriggerRef.current?.contains(target);
+      if (!clickedMenu && !clickedTrigger) setOpenActionsMenu(false);
+    };
+
+    document.addEventListener('pointerdown', closeMenu);
+    return () => document.removeEventListener('pointerdown', closeMenu);
+  }, [openActionsMenu]);
+
+  useEffect(() => {
+    if (editorReady || useFallbackEditor) return;
+
+    const timer = window.setTimeout(() => {
+      if (!editorReady) setUseFallbackEditor(true);
+    }, 4500);
+
+    return () => window.clearTimeout(timer);
+  }, [editorReady, useFallbackEditor]);
+
+  const onBeforeEditorMount: BeforeMount = (monaco) => {
+    defineEditorThemes(monaco);
+  };
+
+  const onEditorMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+    setEditorReady(true);
+    setUseFallbackEditor(false);
+
+    defineEditorThemes(monaco);
+    monaco.editor.setTheme(getEditorTheme(resolvedTheme));
+  };
+
+  useEffect(() => {
+    if (useFallbackEditor || !editorRef.current) {
+      setSelectionCharacterCount(null);
+      return;
+    }
+
+    const editor = editorRef.current;
+    const syncSelectionCharacterCount = () => {
+      const count = getMonacoSelectionCharacterCount(editor);
+      setSelectionCharacterCount(count > 0 ? count : null);
+    };
+
+    syncSelectionCharacterCount();
+
+    const selectionDisposable = editor.onDidChangeCursorSelection(syncSelectionCharacterCount);
+    const contentDisposable = editor.onDidChangeModelContent(syncSelectionCharacterCount);
+
+    return () => {
+      selectionDisposable.dispose();
+      contentDisposable.dispose();
+    };
+  }, [editorReady, useFallbackEditor]);
+
+  useEffect(() => {
+    if (!monacoRef.current) return;
+    monacoRef.current.editor.setTheme(editorTheme);
+  }, [editorTheme]);
+
+  useEffect(() => {
+    if (!onGoToLine) return;
+
+    if (useFallbackEditor) {
+      if (fallbackTextareaRef.current) {
+        const index = getCursorIndexForLine(sqlText, onGoToLine);
+        fallbackTextareaRef.current.focus();
+        fallbackTextareaRef.current.setSelectionRange(index, index);
+        fallbackTextareaRef.current.scrollTo({ top: Math.max(0, onGoToLine - 2) * 20, behavior: 'smooth' });
+      }
+      onGoToLineHandled();
+      return;
+    }
+
+    if (!editorRef.current) return;
+
+    const model = editorRef.current.getModel();
+    const maxLine = model?.getLineCount() ?? onGoToLine;
+    const lineNumber = Math.max(1, Math.min(onGoToLine, maxLine));
+
+    editorRef.current.revealLineInCenter(lineNumber);
+    editorRef.current.setPosition({ lineNumber, column: 1 });
+    editorRef.current.focus();
+
+    onGoToLineHandled();
+  }, [editorReady, onGoToLine, onGoToLineHandled, sqlText, useFallbackEditor]);
+
+  return (
+    <section className="panel-card" style={{ display: 'grid', gridTemplateRows: 'auto 1fr auto', minHeight: 0, height: '100%', padding: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ display: 'grid', gap: 2 }}>
+          <h2 style={{ margin: 0, fontSize: 14, letterSpacing: 0.2 }}>Editor SQL (DDL)</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minHeight: 20 }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Render en vivo</span>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                minHeight: 18,
+                fontSize: 11,
+                lineHeight: 1.1,
+                padding: '2px 7px',
+                borderRadius: 999,
+                color: 'var(--text-muted)',
+                background: selectionCharacterCount
+                  ? 'color-mix(in srgb, var(--panel-alt) 88%, transparent)'
+                  : 'transparent',
+                border: selectionCharacterCount
+                  ? '1px solid color-mix(in srgb, var(--border) 80%, transparent)'
+                  : '1px solid transparent',
+                visibility: selectionCharacterCount ? 'visible' : 'hidden',
+              }}
+            >
+              Selección: {selectionCharacterCount ?? 0} {(selectionCharacterCount ?? 0) === 1 ? 'carácter' : 'caracteres'}
+            </span>
+          </div>
+        </div>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            ref={actionsTriggerRef}
+            className="btn btn-icon"
+            onClick={() => setOpenActionsMenu((open) => !open)}
+            title="Opciones SQL"
+          >
+            <MoreHorizontal size={16} />
+          </button>
+
+          {openActionsMenu && (
+            <div
+              ref={actionsMenuRef}
+              className="overlay-panel"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                width: 260,
+                padding: 12,
+                zIndex: 90,
+                display: 'grid',
+                gap: 12,
+              }}
+            >
+              <div className="overlay-section">
+                <span className="overlay-label">Archivo SQL</span>
+
+                <div className="compact-action-row" aria-label="Acciones de archivo SQL">
+                  <button
+                    className="btn btn-icon compact-action-btn"
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      setOpenActionsMenu(false);
+                    }}
+                    title="Cargar .sql"
+                    aria-label="Cargar .sql"
+                  >
+                    <FolderOpen size={14} />
+                  </button>
+
+                  <button
+                    className="btn btn-icon compact-action-btn"
+                    onClick={() => {
+                      downloadTextFile('schema.sql', sqlText, 'text/sql;charset=utf-8');
+                      setOpenActionsMenu(false);
+                    }}
+                    title="Descargar .sql"
+                    aria-label="Descargar .sql"
+                  >
+                    <Download size={14} />
+                  </button>
+
+                  <button
+                    className="btn btn-icon compact-action-btn"
+                    onClick={() => {
+                      downloadTextFile('schema-backup.sql', sqlText, 'text/sql;charset=utf-8');
+                      setOpenActionsMenu(false);
+                    }}
+                    title="Guardar backup"
+                    aria-label="Guardar backup"
+                  >
+                    <Save size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overlay-section">
+                <span className="overlay-label">Parser</span>
+
+                <label style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+                  Dialecto del parser
+                  <select
+                    className="select-modern"
+                    value={dialect}
+                    onChange={(event) => onDialectChange(event.target.value as Dialect)}
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="postgresql">PostgreSQL</option>
+                    <option value="oracle">Oracle</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".sql,text/sql"
+            hidden
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              const content = await file.text();
+              onSqlChange(content);
+              event.target.value = '';
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="field" style={{ minHeight: 0, overflow: 'hidden', borderRadius: 12 }}>
+        {useFallbackEditor ? (
+          <div style={{ height: '100%', display: 'grid', gridTemplateRows: 'auto 1fr' }}>
+            <div
+              style={{
+                padding: '8px 10px',
+                fontSize: 12,
+                color: '#f59e0b',
+                borderBottom: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <span>Modo fallback activo: Monaco no respondió a tiempo.</span>
+              <button
+                className="btn btn-sm"
+                onClick={() => {
+                  setEditorReady(false);
+                  setUseFallbackEditor(false);
+                }}
+              >
+                Reintentar Monaco
+              </button>
+            </div>
+
+            <textarea
+              ref={fallbackTextareaRef}
+              value={sqlText}
+              onChange={(event) => onSqlChange(event.target.value)}
+              onSelect={() => {
+                const count = getTextareaSelectionCharacterCount(fallbackTextareaRef.current);
+                setSelectionCharacterCount(count > 0 ? count : null);
+              }}
+              onBlur={() => setSelectionCharacterCount(null)}
+              spellCheck={false}
+              style={{
+                width: '100%',
+                height: '100%',
+                resize: 'none',
+                border: 'none',
+                padding: '10px 12px',
+                lineHeight: '20px',
+                fontSize: 13,
+                fontFamily: 'JetBrains Mono, Fira Code, Menlo, Consolas, monospace',
+              }}
+            />
+          </div>
+        ) : (
+          <Editor
+            height="100%"
+            defaultLanguage="sql"
+            language="sql"
+            value={sqlText}
+            loading={<div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--text-muted)' }}>Cargando editor…</div>}
+            onChange={(value) => onSqlChange(value ?? '')}
+            beforeMount={onBeforeEditorMount}
+            onMount={onEditorMount}
+            theme={editorTheme}
+            options={{
+              automaticLayout: true,
+              minimap: { enabled: false },
+              scrollBeyondLastLine: false,
+              roundedSelection: false,
+              fontSize: 13,
+              lineHeight: 20,
+              fontFamily: 'JetBrains Mono, Fira Code, Menlo, Consolas, monospace',
+              tabSize: 2,
+              insertSpaces: true,
+              wordWrap: 'off',
+              smoothScrolling: true,
+              find: {
+                addExtraSpaceOnTop: false,
+                autoFindInSelection: 'never',
+                seedSearchStringFromSelection: 'always',
+                loop: true,
+              },
+            }}
+          />
+        )}
+      </div>
+
+      <div style={{ marginTop: 8, display: 'grid', gap: 4, maxHeight: 90, overflow: 'auto' }}>
+        {errors.length === 0 && warnings.length === 0 ? (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sin errores ni advertencias de referencia.</span>
+        ) : (
+          <>
+            {ambiguousReferences.map((reference) => (
+              <button
+                key={`${reference.sourceTable}.${reference.sourceColumn}.${reference.targetTableInput}`}
+                className="btn btn-sm"
+                style={{
+                  justifyContent: 'flex-start',
+                  textAlign: 'left',
+                  fontSize: 12,
+                  color: '#f59e0b',
+                  borderColor: 'color-mix(in srgb, #f59e0b 28%, var(--border))',
+                  background: 'color-mix(in srgb, #f59e0b 8%, transparent)',
+                }}
+                onClick={() => onAmbiguousReferenceSelect(reference)}
+                title="Centrar y resaltar tablas ambiguas en el diagrama"
+              >
+                ⚠️ Referencia ambigua: {reference.sourceTable}.{reference.sourceColumn} → {reference.targetTableInput}
+              </button>
+            ))}
+            {genericWarnings.map((warning) => (
+              <span key={warning} style={{ color: '#f59e0b', fontSize: 12 }}>
+                ⚠️ {warning}
+              </span>
+            ))}
+            {errors.map((error) => (
+            <span key={error} style={{ color: '#f87171', fontSize: 12 }}>
+              ⚠️ {error}
+            </span>
+            ))}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
