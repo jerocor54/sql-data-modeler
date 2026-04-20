@@ -1,9 +1,7 @@
 name: Deploy to GitHub Pages
 
 on:
-  pull_request:
-    types:
-      - closed
+  push:
     branches:
       - main
 
@@ -11,10 +9,43 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  pull-requests: read
 
 jobs:
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+    steps:
+      - name: Check if push comes from merged PR dev -> main
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo
+            const commit_sha = context.sha
+
+            const response = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner,
+              repo,
+              commit_sha,
+            })
+
+            const shouldDeploy = response.data.some((pr) => {
+              return pr.merged_at && pr.base.ref === 'main' && pr.head.ref === 'dev'
+            })
+
+            core.setOutput('should_deploy', shouldDeploy ? 'true' : 'false')
+
+            if (shouldDeploy) {
+              core.notice(`Deploy enabled for commit ${commit_sha} from merged PR dev -> main.`)
+            } else {
+              core.notice('Skipping deploy because this push is not associated with a merged PR from dev to main.')
+            }
+
   build:
-    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev'
+    needs: guard
+    if: needs.guard.outputs.should_deploy == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -26,8 +57,10 @@ jobs:
           node-version: 22
 
   deploy:
-    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'dev'
-    needs: build
+    needs:
+      - guard
+      - build
+    if: needs.guard.outputs.should_deploy == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
