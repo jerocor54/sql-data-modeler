@@ -1,23 +1,59 @@
 # SQL Data Modeler
 
-Modelador visual de bases de datos hecho con **Astro + React + React Flow + ELK**.
+`sql-data-modeler` es una herramienta web para convertir **SQL DDL** en un **ERD interactivo**, directamente en el navegador.
 
-Permite:
+La apuesta del proyecto es simple: **pegar SQL, entender la estructura rápido, explorar relaciones y exportar el resultado** sin depender de backend, instalación pesada ni infraestructura extra.
+
+## Enfoque del proyecto
+
+Si hoy arrancáramos este producto desde cero, estas serían las decisiones base:
+
+- **100% client-side**
+- **deploy estático**
+- foco en **comprensión, exploración y exportación**
+- persistencia local para continuidad de trabajo
+- resiliencia con fallback de editor y fallback de layout
+- alcance honesto del parser, sin prometer dialectos completos desde el día 1
+
+## Qué resuelve
+
+Trabajar con DDL puro suele volver difícil:
+
+- entender la estructura general de una base
+- detectar relaciones y dependencias
+- revisar esquemas heredados
+- comunicar el modelo a otras personas
+- generar documentación visual rápida
+
+`sql-data-modeler` apunta a resolver eso con una experiencia inmediata y liviana.
+
+## Alcance actual
+
+Hoy el proyecto está orientado a:
 
 - pegar o editar SQL DDL
 - generar el ERD en tiempo real
-- mover tablas y ajustar layout
-- personalizar estilos de tablas y relaciones
+- explorar tablas y relaciones
+- mover tablas y recalcular layout
+- buscar tablas y columnas
+- personalizar aspectos visuales básicos
 - exportar el diagrama
+- persistir preferencias localmente
+
+### Importante
+
+El parser trabaja con un **subconjunto útil y explícito de SQL DDL**. No debe asumirse soporte completo multi-dialecto si no está implementado y verificado.
 
 ## Stack
 
 - Astro
 - React
 - TypeScript
+- Zustand
 - React Flow
 - ELK + Dagre
 - Monaco Editor
+- html-to-image
 
 ## Scripts
 
@@ -31,9 +67,14 @@ Todos los comandos se ejecutan desde la raíz del proyecto.
 | `npm run preview` | Previsualiza el build |
 | `npx tsc --noEmit` | Valida tipos sin generar archivos |
 
+## Documentación del proyecto
+
+- `AGENT.md` — guía técnica para construir y evolucionar el proyecto con las lecciones ya aprendidas
+- `PRD.md` — documento de producto con visión inicial, alcance MVP y roadmap sugerido
+
 ## Deploy en GitHub Pages
 
-El proyecto quedó preparado para desplegarse en GitHub Pages usando GitHub Actions.
+El proyecto está preparado para desplegarse en GitHub Pages usando GitHub Actions.
 
 ### Repo
 
@@ -65,13 +106,16 @@ El proyecto quedó preparado para desplegarse en GitHub Pages usando GitHub Acti
 │   ├── pages/
 │   ├── store/
 │   └── types/
+├── AGENT.md
+├── PRD.md
 ├── astro.config.mjs
 ├── package.json
 └── tsconfig.json
 ```
 
-## Notas
+## Notas de implementación
 
-- El proyecto usa persistencia local para varias preferencias de UI.
-- El layout del diagrama combina heurísticas propias con ELK/Dagre.
+- La app usa persistencia local para preferencias y continuidad de trabajo.
+- El layout combina ELK, fallback layout y heurísticas propias de routing.
+- GitHub Pages y su `base path` deben considerarse desde el inicio al tocar assets o navegación.
 - Para revisar tipos rápidamente, usá `npx tsc --noEmit`.
