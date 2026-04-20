@@ -6,6 +6,58 @@ Este documento define **cómo conviene arrancar y evolucionar `sql-data-modeler`
 
 No es un inventario del presente ni un changelog. Es una guía operativa para tomar mejores decisiones iniciales, evitar trampas conocidas y preservar lo que ya sabemos que sí funciona.
 
+## Skills locales del proyecto
+
+Este repo ahora tiene un set de skills locales para guiar refactors y decisiones de arquitectura frontend/Astro con criterios consistentes y accionables.
+
+### Para qué existen
+
+- bajar ambigüedad cuando haya que cortar `ERDApp.tsx`
+- evitar refactors cosméticos sin mejorar boundaries reales
+- mantener a Astro como shell y a React como motor interactivo
+- encapsular performance, estilos y features sin mezclar todo otra vez
+
+### Regla de prioridad
+
+**Si el cambio es transversal, cargá primero `frontend-app-architecture`.**
+
+Eso incluye cualquier intervención que toque más de una de estas zonas al mismo tiempo:
+
+- shell Astro
+- componentes React
+- features
+- store
+- `lib/`
+- estilos/tokens
+
+### Mapeo: contexto detectado → skill a cargar
+
+| Contexto detectado | Skill |
+| --- | --- |
+| Refactor transversal, reordenamiento de carpetas, ownership entre módulos, extracción grande desde `ERDApp.tsx` | `frontend-app-architecture` |
+| Cambios en `src/pages/index.astro`, `AppRoot`, hydration, theme temprano, límites shell/islas | `astro-shell-islands` |
+| Corte de componentes React, extracción de hooks, separación entre orquestación y presentación | `react-component-boundaries` |
+| Creación o extracción de casos de uso como parseo, auto-layout, exportación, búsqueda | `feature-encapsulation` |
+| Reordenamiento de `global.css`, theming, tokens, variables CSS, estilo por componente o feature | `styles-tokens-encapsulation` |
+| Hotspots de CPU, render pesado, lazy loading, workers, optimización de parse/layout/export | `heavy-client-performance` |
+
+### Combinaciones útiles
+
+| Situación | Skills recomendadas |
+| --- | --- |
+| Cortar `ERDApp.tsx` en piezas mantenibles | `frontend-app-architecture` + `react-component-boundaries` |
+| Extraer parseo/layout/export a módulos con contratos claros | `frontend-app-architecture` + `feature-encapsulation` |
+| Replantear shell Astro y diferir UI pesada | `astro-shell-islands` + `heavy-client-performance` |
+| Separar toolbar/overlays del canvas y bajar rerenders | `react-component-boundaries` + `heavy-client-performance` |
+| Ordenar tema global y estilos de features nuevas | `frontend-app-architecture` + `styles-tokens-encapsulation` |
+| Refactor completo de arquitectura visual + funcional | `frontend-app-architecture` + `react-component-boundaries` + `feature-encapsulation` |
+
+### Ubicación
+
+- índice: `skills/README.md`
+- skills: `skills/*/SKILL.md`
+- referencias compiladas: `skills/*/references/sources.md`
+
 ---
 
 ## 2. Qué es este repositorio
