@@ -10,7 +10,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "benchmark:phase0": "tsx scripts/performance/runPhase0Baseline.ts"
+    "benchmark:phase0": "tsx scripts/performance/runPhase0Baseline.ts",
+    "benchmark:phase3-canvas": "tsx scripts/performance/runPhase3CanvasSmoke.ts"
   },
   "dependencies": {
     "@astrojs/react": "^5.0.3",

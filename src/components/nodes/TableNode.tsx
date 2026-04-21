@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position as HandlePosition, type NodeProps } from '@xyflow/react';
 import {
   Eye,
@@ -11,24 +11,10 @@ import {
 import { TABLE_NODE_WIDTH } from '../../lib/diagramGeometry';
 import { EDGE_HANDLE_IDS } from '../../lib/edgeRouting';
 import { getTypeIconKey, type SqlTypeIconKey } from '../../lib/typeIcons';
-import type { TableDesignTheme, TableModel, TableVisualConfig, ThemeMode, TypeDisplayMode } from '../../types/erd';
-
-interface TableNodeData {
-  table: TableModel;
-  config: TableVisualConfig;
-  appTheme: ThemeMode;
-  designTheme: TableDesignTheme;
-  typeMode: TypeDisplayMode;
-  activeColumns: Set<string>;
-  ambiguousColumns: Set<string>;
-  isAmbiguousTable: boolean;
-  focusedAmbiguousColumns: Set<string>;
-  isFocusedAmbiguousTable: boolean;
-  onColumnSelect: (tableKey: string, columnName: string, kind: 'pk' | 'fk') => void;
-  onGoToSql: (line: number) => void;
-  onPreview: (tableKey: string) => void;
-  onTableStyleChange: (tableKey: string, patch: Partial<TableVisualConfig>) => void;
-}
+import type { TableDesignTheme, ThemeMode } from '../../types/erd';
+import { useTableNodeLodState } from '../../features/diagram-canvas/diagramLod';
+import { useDiagramTableTransientState } from '../../features/diagram-canvas/diagramCanvasTransientState';
+import type { TableNodeData } from '../../features/diagram-canvas/diagramCanvasTypes';
 
 function badgeStyles(isPrimary: boolean, isForeign: boolean, designTheme: TableDesignTheme): React.CSSProperties {
   if (designTheme === 'dbeaver') {
@@ -144,10 +130,15 @@ function getDbeaverPalette(appTheme: ThemeMode) {
   };
 }
 
-export default function TableNode({ data }: NodeProps & { data: TableNodeData }) {
+function TableNode({ data }: NodeProps & { data: TableNodeData }) {
   const [openMenu, setOpenMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const tableLodState = useTableNodeLodState(data.table.columns.length);
+  const lodLevel = tableLodState.lodLevel;
+  const isFarLod = lodLevel === 'far';
+  const isMediumLod = lodLevel === 'medium';
+  const supportsRichDetail = tableLodState.supportsRichDetail;
 
   useEffect(() => {
     if (!openMenu) return;
@@ -163,6 +154,11 @@ export default function TableNode({ data }: NodeProps & { data: TableNodeData })
     document.addEventListener('pointerdown', onDocumentPointerDown);
     return () => document.removeEventListener('pointerdown', onDocumentPointerDown);
   }, [openMenu]);
+
+  useEffect(() => {
+    if (supportsRichDetail) return;
+    setOpenMenu(false);
+  }, [supportsRichDetail]);
 
   const rowTypeLabel = useMemo(
     () =>
@@ -197,7 +193,8 @@ export default function TableNode({ data }: NodeProps & { data: TableNodeData })
         })() : rawType,
     [data.appTheme, data.designTheme, data.typeMode],
   );
-  const showStrongFocus = data.isFocusedAmbiguousTable;
+  const transientState = useDiagramTableTransientState(data.table.key);
+  const showStrongFocus = transientState.isFocusedAmbiguousTable;
   const isDbeaver = data.designTheme === 'dbeaver';
   const dbeaverPalette = getDbeaverPalette(data.appTheme);
   const effectiveBg = isDbeaver && data.config.useThemeDefaults ? dbeaverPalette.tableBackground : data.config.bgColor;
@@ -205,6 +202,12 @@ export default function TableNode({ data }: NodeProps & { data: TableNodeData })
   const frameBorderColor = isDbeaver ? dbeaverPalette.frameBorderColor : 'color-mix(in srgb, var(--border) 85%, transparent)';
   const headerBackground = isDbeaver ? dbeaverPalette.headerBackground : effectiveBg;
   const rowDividerColor = isDbeaver ? dbeaverPalette.rowDividerColor : '#33415555';
+  const visibleColumns = useMemo(
+    () => data.table.columns.slice(0, tableLodState.visibleCount),
+    [data.table.columns, tableLodState.visibleCount],
+  );
+  const hiddenColumnsCount = tableLodState.hiddenCount;
+  const showColumnTypes = tableLodState.showTypes;
 
   return (
     <div
@@ -215,9 +218,9 @@ export default function TableNode({ data }: NodeProps & { data: TableNodeData })
         overflow: 'visible',
         border: showStrongFocus
           ? '1px solid rgba(245, 158, 11, 0.92)'
-          : data.isAmbiguousTable
-            ? '1px solid color-mix(in srgb, #f59e0b 60%, var(--border))'
-            : `1px solid ${frameBorderColor}`,
+            : transientState.isAmbiguousTable
+              ? '1px solid color-mix(in srgb, #f59e0b 60%, var(--border))'
+              : `1px solid ${frameBorderColor}`,
         background: effectiveBg,
         color: effectiveText,
         boxShadow: showStrongFocus
@@ -293,9 +296,9 @@ export default function TableNode({ data }: NodeProps & { data: TableNodeData })
             background: headerBackground,
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-              {isDbeaver && <HeaderTableGlyph primary={dbeaverPalette.glyphPrimary} secondary={dbeaverPalette.glyphSecondary} />}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                {isDbeaver && <HeaderTableGlyph primary={dbeaverPalette.glyphPrimary} secondary={dbeaverPalette.glyphSecondary} />}
               <strong
                 style={{
                   fontSize: isDbeaver ? 13 : 14,
@@ -304,11 +307,27 @@ export default function TableNode({ data }: NodeProps & { data: TableNodeData })
                   textOverflow: 'ellipsis',
                   fontWeight: isDbeaver ? 600 : 700,
                 }}
-              >
-                {data.table.name}
-              </strong>
-              {data.isAmbiguousTable && (
-                <span
+                >
+                  {data.table.name}
+                </strong>
+                {(isFarLod || isMediumLod) && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: 'var(--text-muted)',
+                      background: 'color-mix(in srgb, var(--surface-2) 82%, transparent)',
+                      border: '1px solid color-mix(in srgb, var(--border) 70%, transparent)',
+                      borderRadius: 999,
+                      padding: '3px 8px',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {data.table.columns.length} cols
+                  </span>
+                )}
+                {transientState.isAmbiguousTable && (
+                  <span
                   title="Esta tabla participa en una referencia ambigua"
                   style={{
                     fontSize: 10,
@@ -326,29 +345,36 @@ export default function TableNode({ data }: NodeProps & { data: TableNodeData })
                 </span>
               )}
             </div>
-            <button
-              ref={triggerRef}
-              className="btn btn-icon btn-sm"
-              onClick={() => setOpenMenu((s) => !s)}
-              style={{
-                cursor: 'pointer',
-                background: isDbeaver ? dbeaverPalette.triggerBackground : undefined,
-                borderColor: isDbeaver ? dbeaverPalette.triggerBorder : undefined,
-                color: isDbeaver ? dbeaverPalette.triggerText : undefined,
-              }}
-              title="Opciones de tabla"
-            >
-              <MoreHorizontal size={14} />
-            </button>
+            {supportsRichDetail && (
+              <button
+                ref={triggerRef}
+                className="btn btn-icon btn-sm"
+                onClick={() => setOpenMenu((s) => !s)}
+                style={{
+                  cursor: 'pointer',
+                  background: isDbeaver ? dbeaverPalette.triggerBackground : undefined,
+                  borderColor: isDbeaver ? dbeaverPalette.triggerBorder : undefined,
+                  color: isDbeaver ? dbeaverPalette.triggerText : undefined,
+                }}
+                title="Opciones de tabla"
+              >
+                <MoreHorizontal size={14} />
+              </button>
+            )}
           </div>
         </div>
 
         <div>
-          {data.table.columns.map((column) => {
+          {visibleColumns.map((column) => {
             const columnKey = `${data.table.key}.${column.name.toLowerCase()}`;
-            const isActive = data.activeColumns.has(columnKey);
-            const isAmbiguous = data.ambiguousColumns.has(columnKey);
-            const isFocusedAmbiguous = data.focusedAmbiguousColumns.has(columnKey);
+            const localColumnKey = column.name.toLowerCase();
+            const isActive =
+              transientState.activeColumnNames.has(localColumnKey) || transientState.activeColumnNames.has(columnKey);
+            const isAmbiguous =
+              transientState.ambiguousColumnNames.has(localColumnKey) || transientState.ambiguousColumnNames.has(columnKey);
+            const isFocusedAmbiguous =
+              transientState.focusedAmbiguousColumnNames.has(localColumnKey) ||
+              transientState.focusedAmbiguousColumnNames.has(columnKey);
             return (
               <button
                 key={column.name}
@@ -363,13 +389,13 @@ export default function TableNode({ data }: NodeProps & { data: TableNodeData })
                     : isAmbiguous
                       ? 'color-mix(in srgb, #f59e0b 16%, transparent)'
                       : 'transparent',
-                  color: 'inherit',
-                  textAlign: 'left',
-                  display: 'grid',
-                  gridTemplateColumns: 'auto 1fr auto',
-                  gap: 8,
-                  alignItems: 'center',
-                  padding: isDbeaver ? '6px 10px' : '7px 10px',
+                   color: 'inherit',
+                   textAlign: 'left',
+                   display: 'grid',
+                    gridTemplateColumns: showColumnTypes ? 'auto 1fr auto' : 'auto 1fr',
+                   gap: 8,
+                   alignItems: 'center',
+                   padding: isDbeaver ? '6px 10px' : '7px 10px',
                   cursor: column.isPrimary || column.isForeign ? 'pointer' : 'inherit',
                   boxShadow: isFocusedAmbiguous
                     ? 'inset 3px 0 0 rgba(245, 158, 11, 0.92)'
@@ -381,8 +407,8 @@ export default function TableNode({ data }: NodeProps & { data: TableNodeData })
                   if (column.isPrimary) data.onColumnSelect(data.table.key, column.name, 'pk');
                   else if (column.isForeign) data.onColumnSelect(data.table.key, column.name, 'fk');
                 }}
-              >
-                <span
+                >
+                  <span
                   style={
                     isDbeaver
                       ? {
@@ -404,15 +430,49 @@ export default function TableNode({ data }: NodeProps & { data: TableNodeData })
                   >
                    {column.isPrimary ? 'PK' : column.isForeign ? 'FK' : 'COL'}
                 </span>
-                <span style={{ fontSize: 12, fontWeight: column.isPrimary && isDbeaver ? 700 : 500 }}>{column.name}</span>
-                <small style={{ opacity: 0.92, fontSize: 11, display: 'inline-flex', alignItems: 'center' }}>{rowTypeLabel(column.rawType)}</small>
-              </button>
-            );
-          })}
+                <span style={{ fontSize: 12, fontWeight: column.isPrimary && isDbeaver ? 700 : 500, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {column.name}
+                </span>
+                 {showColumnTypes && (
+                   <small style={{ opacity: 0.92, fontSize: 11, display: 'inline-flex', alignItems: 'center' }}>{rowTypeLabel(column.rawType)}</small>
+                 )}
+               </button>
+             );
+           })}
+          {(isFarLod || isMediumLod || hiddenColumnsCount > 0) && (
+            <div
+              style={{
+                padding: isDbeaver ? '6px 10px' : '8px 10px',
+                borderTop: visibleColumns.length > 0 ? `1px solid ${rowDividerColor}` : 'none',
+                color: 'var(--text-muted)',
+                fontSize: 11,
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 8,
+              }}
+            >
+              <span>
+                {isFarLod
+                  ? 'Vista resumida por zoom'
+                  : isMediumLod
+                    ? 'Vista intermedia por zoom'
+                    : 'Detalle progresivo para tablas grandes'}
+              </span>
+              <span>
+                {isFarLod
+                  ? 'Acercate para ver columnas'
+                  : hiddenColumnsCount > 0
+                    ? `+${hiddenColumnsCount} columnas`
+                    : showColumnTypes
+                      ? 'Detalle completo'
+                      : 'Acercate para ver tipos'}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
-      {openMenu && (
+      {openMenu && supportsRichDetail && (
         <div
           ref={menuRef}
           className="overlay-panel"
@@ -516,3 +576,5 @@ export default function TableNode({ data }: NodeProps & { data: TableNodeData })
     </div>
   );
 }
+
+export default memo(TableNode);

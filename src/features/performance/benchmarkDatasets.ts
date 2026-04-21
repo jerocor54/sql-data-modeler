@@ -37,7 +37,7 @@ const DATASET_PRESETS: BenchmarkDatasetPreset[] = [
     label: 'L',
     version: DATASET_VERSION,
     tableCount: 500,
-    description: 'Tamaño grande para exponer hotspots visibles del main thread.',
+    description: 'Tamaño grande para exponer hotspots visibles de layout y render del canvas.',
     interactiveSupport: 'controlled-only',
   },
   {
@@ -45,7 +45,7 @@ const DATASET_PRESETS: BenchmarkDatasetPreset[] = [
     label: 'XL',
     version: DATASET_VERSION,
     tableCount: 1000,
-    description: 'Escala muy grande para medir el límite antes de workers.',
+    description: 'Escala muy grande para medir el límite del baseline controlado y del canvas.',
     interactiveSupport: 'controlled-only',
   },
   {

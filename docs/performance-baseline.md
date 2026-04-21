@@ -14,6 +14,7 @@ La Fase 0 ya no depende solo de clicks manuales en navegador:
 - `src/features/performance/BenchmarkPanel.tsx` — UI explícita para baseline manual
 - `src/pages/benchmark.astro` — ruta dedicada para benchmark manual
 - `scripts/performance/runPhase0Baseline.ts` — CLI reproducible para baseline automatizado
+- `scripts/performance/runPhase3CanvasSmoke.ts` — smoke controlado para estimar presión de rerender por zoom en Fase 3
 - `docs/performance-baseline-results.phase-0.full.json` — corrida base full (parse + ELK) para S/M y evidencia de falla en L/XL
 - `docs/performance-baseline-results.phase-0.parse-only.json` — corrida base parse-only para S/M/L/XL/XXL
 
@@ -52,6 +53,16 @@ Esto mide:
 - parse time
 - total CPU de parse-only
 - cantidad de tablas y relaciones
+
+### Smoke de canvas — presión de rerender por zoom
+
+```bash
+npm run benchmark:phase3-canvas
+```
+
+Esto NO mide FPS real en browser.
+
+Sí mide algo útil y honesto para Fase 3: cuántas invalidaciones potenciales por zoom generan los nodos/edges si se suscriben a zoom crudo vs buckets de LOD.
 
 ## Cómo correr el baseline manual en navegador
 
@@ -141,3 +152,30 @@ Arrancá por estos hechos, no por intuición:
 3. Entonces Fase 1 tiene que abrir seams mínimos alrededor de parse/layout/orquestación en `ERDApp.tsx`, SIN meter todavía workers.
 
 En otras palabras: la próxima fase no empieza “optimizando un poquito”. Empieza separando ownership para poder mover el trabajo pesado después.
+
+## Snapshot actualizado al cierre de Fase 3
+
+Captura local de esta rama (`2026-04-21`, `Apple M3 Pro`) sin build:
+
+### `npm run benchmark:phase0 -- --presets=s,m --iterations=1 --warmups=0`
+
+| Preset | Parse | Layout | Total CPU | Lectura honesta |
+| --- | ---: | ---: | ---: | --- |
+| S | 6.11 ms | 518.01 ms | 524.12 ms | sigue sano para smoke chico |
+| M | 35.08 ms | 25252.47 ms | 25287.55 ms | layout sigue siendo el cuello dominante; Phase 3 NO cambia este costo |
+
+### `npm run benchmark:phase3-canvas`
+
+Supuesto del smoke: barrido continuo de zoom `0.12 → 1.80` con `180` muestras.
+
+| Preset | Invalidaciones potenciales antes | Invalidaciones potenciales después | Reducción |
+| --- | ---: | ---: | ---: |
+| S | 22912 | 462 | 97.98% |
+| M | 94154 | 1904 | 97.98% |
+
+### Qué significan realmente estos números
+
+- El benchmark de Fase 0 sigue siendo válido para parse + layout.
+- El smoke de Fase 3 NO reemplaza medición de FPS real en navegador.
+- Sí demuestra algo importante: el canvas dejó de invalidar nodos y edges por cada delta de zoom cuando el bucket visual no cambió.
+- Con esto, Fase 3 queda medible de forma razonable con la infraestructura actual, pero el próximo salto serio de UX ya pertenece a Fase 4.

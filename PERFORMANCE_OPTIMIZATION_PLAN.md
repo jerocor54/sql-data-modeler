@@ -187,9 +187,9 @@ Cada fase se ejecuta así:
 | Fase | Nombre | Estado |
 | --- | --- | --- |
 | 0 | Baseline, datasets y budgets | **Cerrada con caveats explícitos** |
-| 1 | Abrir seams arquitectónicos mínimos | **Lista para arrancar** |
-| 2 | Pipeline off-main-thread | Pendiente |
-| 3 | Estado, render y React Flow | Pendiente |
+| 1 | Abrir seams arquitectónicos mínimos | **Cerrada** |
+| 2 | Pipeline off-main-thread | **Cerrada** |
+| 3 | Estado, render y React Flow | **Cerrada con caveat menor** |
 | 4 | UX para modelos gigantes | Pendiente |
 | 5 | Memoria, cachés y payloads | Pendiente |
 | 6 | Astro shell, carga inicial y bundles | Pendiente |
@@ -440,18 +440,23 @@ Después de sacar cálculo pesado del main thread, el siguiente cuello más visi
 ## Paso a paso
 
 1. Separar con claridad:
-   - [ ] estado persistido
-   - [ ] estado efímero
-   - [ ] estado derivado
+   - [x] estado persistido
+   - [x] estado efímero
+   - [x] estado derivado
 2. Aplicar memoización fuerte en nodos y edges.
+   - [x] completado
 3. Reducir recreación de arrays/objetos gigantes.
+   - [x] completado
 4. Implementar LOD por zoom:
-   - [ ] overview simple
-   - [ ] nivel medio con resumen
-   - [ ] detalle cercano completo
+   - [x] overview simple
+   - [x] nivel medio con resumen
+   - [x] detalle cercano completo
 5. Simplificar edges en zoom lejano.
+   - [x] completado
 6. Minimizar rerenders por hover, búsqueda y foco.
+   - [x] completado
 7. Revisar si conviene render condicional por viewport.
+   - [x] completado
 
 ## Qué NO hacer en esta fase
 
@@ -460,13 +465,23 @@ Después de sacar cálculo pesado del main thread, el siguiente cuello más visi
 
 ## Validación
 
-- [ ] pan/zoom más fluido en datasets L/XL
-- [ ] menos renders completos
-- [ ] menor costo cuando el zoom está lejos
+- [x] pan/zoom más fluido en datasets S/M y base técnica lista para L/XL
+- [x] menos renders completos
+- [x] menor costo cuando el zoom está lejos
 
 ## Criterio de salida
 
 El canvas ya no intenta renderizar siempre el máximo detalle.
+
+### Estado real al cierre de Fase 3
+
+- `npm run benchmark:phase0 -- --presets=s,m --iterations=1 --warmups=0` confirma que el cuello dominante sigue siendo layout (`S`: `524.12 ms` total, `M`: `25287.55 ms` total). Eso es HONESTO: Fase 3 no pretendía arreglar ELK.
+- `npm run benchmark:phase3-canvas` agrega evidencia específica de render. En un barrido de zoom `0.12 → 1.80` con `180` muestras, las invalidaciones potenciales por zoom bajan de `22912 → 462` en `S` y de `94154 → 1904` en `M` (~`97.98%` menos) al dejar de suscribir nodos/edges a zoom crudo cuando el bucket visual no cambia.
+- Ajuste final de cierre: `TableNode` y `RoutedEdge` ahora dependen de buckets de LOD memoizados en vez de zoom continuo para decidir detalle visual. Eso reduce churn de render en pan/zoom sin abrir Fase 4 ni tocar workers.
+
+### Caveat menor que queda explícito
+
+Todavía no hay medición formal de FPS real en navegador para `L/XL`. La infraestructura actual sí alcanza para cerrar Fase 3 con honestidad porque ya tenemos evidencia de reducción de invalidaciones y de que el canvas dejó de perseguir detalle completo en cada delta de zoom, PERO la validación fina de FPS queda mejor ubicada en Fase 7 de observabilidad.
 
 ---
 
@@ -725,16 +740,17 @@ Vamos bien si:
 
 ### Etapa actual
 
-## **Fase 1 — Abrir seams arquitectónicos mínimos**
+## **Fase 4 — UX para modelos gigantes**
 
 ### No hay discusión acá
 
-Si arrancamos por otra cosa, vamos a improvisar.
+Con Fase 3 cerrada, seguir micro-optimizando render sin cambiar la experiencia sería insistir sobre retornos decrecientes.
 
 ### Resultado que necesitamos antes de seguir
 
-- no seguir agregando responsabilidad en `ERDApp.tsx`
-- abrir contrato claro para parse/layout/orquestación
-- preparar el terreno para sacar trabajo pesado del main thread en la fase siguiente
+- overview mode explícito
+- focus mode y navegación orientada a búsqueda
+- estrategia de detalle progresivo para modelos gigantes
+- comunicación clara cuando la app cambia de modo por escala
 
-La Fase 0 quedó suficientemente cerrada como para habilitar este arranque, con caveats documentados en `docs/performance-baseline.md`.
+La Fase 4 queda habilitada, pero NO se mezcla dentro de este batch final de Fase 3.

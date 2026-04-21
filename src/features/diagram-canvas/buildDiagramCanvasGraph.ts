@@ -25,6 +25,7 @@ import type {
   ThemeMode,
   TypeDisplayMode,
 } from '../../types/erd';
+import type { RoutedEdgeData, TableNodeData } from './diagramCanvasTypes';
 import { deriveRelationshipCardinality } from '../parse-sql/useDiagramModel';
 
 const LEGACY_DEFAULT_COLORS = {
@@ -112,7 +113,6 @@ const TABLE_BUNDLE_INSET = 24;
 const BUNDLE_CLUSTER_SPAN = 72;
 const BUNDLE_MAX_GROUP_SIZE = 3;
 const ROUTE_EPSILON = 0.001;
-
 function parseHandleSide(handleId?: string): HandleSide | null {
   if (!handleId) return null;
   if (handleId.endsWith('-left')) return 'left';
@@ -654,16 +654,10 @@ interface DiagramNodeHandlers {
 }
 
 export interface BuildDiagramCanvasGraphInput extends DiagramNodeHandlers {
-  activeColumns: Set<string>;
-  ambiguousColumns: Set<string>;
-  ambiguousTableKeys: Set<string>;
   effectiveLineStyle: RelationLineStyle;
   elkLayout: ElkLayoutResult;
-  focusedAmbiguousColumns: Set<string>;
-  focusedAmbiguousTables: Set<string>;
   globalTypeMode: TypeDisplayMode;
   hasManualLayout: boolean;
-  highlightedEdgeIds: Set<string>;
   linePattern: RelationLinePattern;
   parsed: ParseResult;
   relationGrouping: RelationGroupingMode;
@@ -675,16 +669,10 @@ export interface BuildDiagramCanvasGraphInput extends DiagramNodeHandlers {
 }
 
 export function buildDiagramCanvasGraph({
-  activeColumns,
-  ambiguousColumns,
-  ambiguousTableKeys,
   effectiveLineStyle,
   elkLayout,
-  focusedAmbiguousColumns,
-  focusedAmbiguousTables,
   globalTypeMode,
   hasManualLayout,
-  highlightedEdgeIds,
   linePattern,
   onColumnSelect,
   onGoToSql,
@@ -715,16 +703,11 @@ export function buildDiagramCanvasGraph({
       appTheme: theme,
       designTheme: tableDesignTheme,
       typeMode: globalTypeMode,
-      activeColumns,
-      ambiguousColumns,
-      isAmbiguousTable: ambiguousTableKeys.has(table.key),
-      focusedAmbiguousColumns,
-      isFocusedAmbiguousTable: focusedAmbiguousTables.has(table.key),
       onColumnSelect,
       onGoToSql,
       onPreview,
       onTableStyleChange,
-    },
+    } satisfies TableNodeData,
     draggable: true,
   }));
 
@@ -913,7 +896,6 @@ export function buildDiagramCanvasGraph({
 
     if (renderedPoints.length < 2) continue;
 
-    const highlighted = highlightedEdgeIds.has(rel.id);
     const relationshipLabel = `${rel.sourceColumn} → ${rel.targetColumn}`;
     const cardinality = deriveRelationshipCardinality(rel, tableMap);
 
@@ -925,18 +907,18 @@ export function buildDiagramCanvasGraph({
       targetHandle: preferredTargetPlan
         ? `target-${preferredTargetPlan.side}`
         : fallbackHandlePair?.targetHandle ?? pathMeta?.targetHandle,
-      zIndex: highlighted ? 2 : 1,
+      zIndex: 1,
       style: {
-        stroke: highlighted ? '#22d3ee' : '#94a3b8',
-        strokeWidth: highlighted ? 3 : 2,
+        stroke: '#94a3b8',
+        strokeWidth: 2,
         strokeLinecap: linePattern === 'dashed' ? 'butt' : 'round',
         strokeDasharray: linePattern === 'dashed' ? '10 8' : undefined,
         strokeDashoffset: linePattern === 'dashed' ? 0 : undefined,
-        strokeOpacity: linePattern === 'dashed' || highlighted ? 1 : 0.88,
+        strokeOpacity: linePattern === 'dashed' ? 1 : 0.88,
         filter: linePattern === 'dashed' ? undefined : 'drop-shadow(0 0 1px rgba(15, 23, 42, 0.45))',
       },
       interactionWidth: 34,
-      animated: highlighted,
+      animated: false,
     } as const;
 
     const labelPoint = getPolylineMidpoint(renderedPoints);
@@ -960,15 +942,15 @@ export function buildDiagramCanvasGraph({
     edges.push({
       ...commonEdge,
       type: 'routed',
-      label: highlighted ? relationshipLabel : undefined,
+      label: relationshipLabel,
       data: {
         path,
         points: renderedPoints,
         labelX: labelPoint.x,
         labelY: labelPoint.y,
-        showLabel: highlighted,
+        showLabel: true,
         cardinality,
-      },
+      } satisfies RoutedEdgeData,
     });
   }
 

@@ -28,6 +28,7 @@ import type {
   ViewMode,
 } from '../types/erd';
 import { useAutoLayout } from '../features/auto-layout/useAutoLayout';
+import { useSyncDiagramCanvasTransientState } from '../features/diagram-canvas/diagramCanvasTransientState';
 import { useDiagramCanvasModel } from '../features/diagram-canvas/useDiagramCanvasModel';
 import { useDiagramModel, type DiagramSearchResult } from '../features/parse-sql/useDiagramModel';
 import BenchmarkPanel from '../features/performance/BenchmarkPanel';
@@ -263,6 +264,30 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     if (selectedRelationshipId) return getActiveColumnsForRelationship(selectedRelationshipId, parsed.relationships);
     return getActiveColumns(selected, parsed.relationships);
   }, [selected, selectedRelationshipId, parsed.relationships]);
+  const viewportPinnedNodeIds = useMemo(() => {
+    const pinned = new Set<string>(focusedAmbiguousTables);
+
+    if (selected) pinned.add(selected.table);
+    if (previewTable) pinned.add(previewTable);
+
+    if (selectedRelationshipId) {
+      const relationship = parsed.relationships.find((rel) => rel.id === selectedRelationshipId);
+      if (relationship) {
+        pinned.add(relationship.sourceTable);
+        pinned.add(relationship.targetTable);
+      }
+    }
+
+    return pinned;
+  }, [focusedAmbiguousTables, parsed.relationships, previewTable, selected, selectedRelationshipId]);
+  useSyncDiagramCanvasTransientState({
+    activeColumns,
+    ambiguousColumns,
+    ambiguousTableKeys,
+    focusedAmbiguousColumns,
+    focusedAmbiguousTables,
+    highlightedEdgeIds,
+  });
   const handleDiagramColumnSelect = useCallback((tableKey: string, columnName: string, kind: 'pk' | 'fk') => {
     setSelectedRelationshipId(null);
     setSelected((prev) =>
@@ -293,16 +318,10 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     tables: parsed.tables,
   });
   const { nodes, edges, onNodesChange, onEdgesChange, setEdges } = useDiagramCanvasModel({
-    activeColumns,
-    ambiguousColumns,
-    ambiguousTableKeys,
     effectiveLineStyle,
     elkLayout,
-    focusedAmbiguousColumns,
-    focusedAmbiguousTables,
     globalTypeMode,
     hasManualLayout,
-    highlightedEdgeIds,
     linePattern,
     onColumnSelect: handleDiagramColumnSelect,
     onGoToSql: handleGoToSql,
@@ -565,9 +584,11 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       diagramSearch={diagramSearch}
       diagramSearchResults={diagramSearchResults}
       diagramViewport={diagramViewport}
+      disableViewportCulling={Boolean(exportingFormat)}
       edges={edges}
       exportRef={exportRef}
       hasSavedDiagramViewport={hasSavedDiagramViewport}
+      highlightedEdgeIds={highlightedEdgeIds}
       nodes={nodes}
       onClearSearchHighlights={() => {
         setFocusedAmbiguousTables(new Set());
@@ -583,6 +604,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       onPaneClick={onPaneClick}
       onViewportChange={setPersistedViewport}
       reactFlowRef={reactFlowRef}
+      viewportPinnedNodeIds={viewportPinnedNodeIds}
     />
   );
 

@@ -35,7 +35,7 @@ export default function BenchmarkPanel({
   const selectedPreset = useMemo(() => getBenchmarkDatasetPreset(selectedPresetId), [selectedPresetId]);
   const isInteractivePreset = selectedPreset.interactiveSupport === 'safe';
   const interactiveGuardMessage = useMemo(
-    () => `Los presets grandes (L/XL/XXL) no están habilitados para carga interactiva: hoy siguen bloqueando la UI porque parse + layout corren en el main thread. Corré benchmark:phase0 con --presets=${selectedPresetId} para medirlos en modo controlado.`,
+    () => `Los presets grandes (L/XL/XXL) quedan fuera de este smoke interactivo porque siguen siendo casos de estrés fuerte para canvas/browser. Corré benchmark:phase0 con --presets=${selectedPresetId} para medir parse + layout en modo controlado, y benchmark:phase3-canvas para contrastar presión de rerender por zoom.`,
     [selectedPresetId],
   );
 
@@ -107,7 +107,7 @@ export default function BenchmarkPanel({
           className="btn btn-sm"
           onClick={() => onLoadDataset(selectedPresetId)}
           disabled={!isBenchmarkDatasetInteractiveSupported(selectedPresetId)}
-          title={!isInteractivePreset ? 'Disponible solo para S/M mientras parse + layout sigan en el main thread.' : undefined}
+          title={!isInteractivePreset ? 'Disponible solo para S/M en este smoke interactivo controlado.' : undefined}
         >
           Cargar dataset en la app
         </button>
@@ -115,7 +115,7 @@ export default function BenchmarkPanel({
           className="btn btn-sm btn-subtle"
           onClick={() => onRerunDataset(selectedPresetId)}
           disabled={!isBenchmarkDatasetInteractiveSupported(selectedPresetId)}
-          title={!isInteractivePreset ? 'Disponible solo para S/M mientras parse + layout sigan en el main thread.' : undefined}
+          title={!isInteractivePreset ? 'Disponible solo para S/M en este smoke interactivo controlado.' : undefined}
         >
           Repetir baseline actual
         </button>

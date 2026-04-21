@@ -1,15 +1,10 @@
-import type { CSSProperties } from 'react';
+import { memo, type CSSProperties } from 'react';
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react';
-import type { RelationshipCardinality, RelationshipEndpointCardinality } from '../../types/erd';
-
-interface RoutedEdgeData {
-  path?: string;
-  points?: Array<{ x: number; y: number }>;
-  labelX?: number;
-  labelY?: number;
-  showLabel?: boolean;
-  cardinality?: RelationshipCardinality;
-}
+import type { RelationshipEndpointCardinality } from '../../types/erd';
+import { pointsToCornerPath } from '../../lib/orthogonalRouter';
+import { useDiagramEdgeLodState } from '../../features/diagram-canvas/diagramLod';
+import { useDiagramEdgeHighlighted } from '../../features/diagram-canvas/diagramCanvasTransientState';
+import type { RoutedEdgeData } from '../../features/diagram-canvas/diagramCanvasTypes';
 
 interface MarkerPathShape {
   kind: 'path';
@@ -195,23 +190,44 @@ export function CardinalityLegendMark({
   );
 }
 
-export default function RoutedEdge(props: EdgeProps) {
+function RoutedEdge(props: EdgeProps) {
   const data = (props.data ?? {}) as RoutedEdgeData;
+  const edgeLodState = useDiagramEdgeLodState();
+  const isHighlighted = useDiagramEdgeHighlighted(props.id);
+  const lodLevel = edgeLodState.lodLevel;
+  const isFarLod = lodLevel === 'far';
+  const isMediumLod = lodLevel === 'medium';
   const edgePath = data.path ?? `M ${props.sourceX} ${props.sourceY} L ${props.targetX} ${props.targetY}`;
+  const simplifiedEdgePath = `M ${props.sourceX} ${props.sourceY} L ${props.targetX} ${props.targetY}`;
   const edgePoints = data.points ?? [
     { x: props.sourceX, y: props.sourceY },
     { x: props.targetX, y: props.targetY },
   ];
+  const mediumEdgePath =
+    edgePoints.length > 2
+      ? pointsToCornerPath(edgePoints, {
+          mode: 'straight',
+          cornerSize: 28,
+          curveStrength: 1,
+        })
+      : edgePath;
   const labelX = data.labelX ?? (props.sourceX + props.targetX) / 2;
   const labelY = data.labelY ?? (props.sourceY + props.targetY) / 2;
-  const shouldRenderLabel = data.showLabel && typeof props.label === 'string' && props.label.length > 0;
   const edgeStyle = (props.style ?? {}) as CSSProperties;
-  const strokeWidth = typeof edgeStyle.strokeWidth === 'number' ? edgeStyle.strokeWidth : 2;
+  const baseStrokeWidth = typeof edgeStyle.strokeWidth === 'number' ? edgeStyle.strokeWidth : 2;
+  const strokeWidth = isHighlighted ? Math.max(3, baseStrokeWidth + 1) : baseStrokeWidth;
   const cardinality =
     data.cardinality ?? {
       source: { min: 0, max: 'many' },
       target: { min: 0, max: 'many' },
     };
+  const shouldRenderMarkers = edgeLodState.showMarkers;
+  const shouldRenderLabel =
+    shouldRenderMarkers &&
+    (isHighlighted || edgeLodState.showUnhighlightedLabels) &&
+    data.showLabel &&
+    typeof props.label === 'string' &&
+    props.label.length > 0;
   const startMarkerShapes = buildEndpointMarker(edgePoints, 'start', cardinality.source, strokeWidth) ?? [];
   const endMarkerShapes = buildEndpointMarker(edgePoints, 'end', cardinality.target, strokeWidth) ?? [];
   const backgroundStyle: CSSProperties = {
@@ -224,7 +240,30 @@ export default function RoutedEdge(props: EdgeProps) {
   };
   const foregroundStyle: CSSProperties = {
     ...edgeStyle,
+    stroke: isHighlighted ? '#22d3ee' : edgeStyle.stroke,
+    strokeWidth,
+    strokeOpacity: isHighlighted ? 1 : edgeStyle.strokeOpacity,
+    filter: isHighlighted ? 'drop-shadow(0 0 3px rgba(34, 211, 238, 0.35))' : edgeStyle.filter,
     strokeLinejoin: 'round',
+  };
+  const simplifiedStyle: CSSProperties = {
+    ...foregroundStyle,
+    strokeWidth:
+      typeof foregroundStyle.strokeWidth === 'number'
+        ? isFarLod
+          ? Math.max(1, foregroundStyle.strokeWidth - 0.75)
+          : isMediumLod
+            ? Math.max(1.25, foregroundStyle.strokeWidth - 0.35)
+          : foregroundStyle.strokeWidth
+        : isFarLod
+          ? 1.25
+          : isMediumLod
+            ? 1.5
+          : 2,
+    strokeOpacity: isHighlighted ? 0.96 : isFarLod ? 0.34 : 0.56,
+    filter: 'none',
+    strokeDasharray: isFarLod ? undefined : foregroundStyle.strokeDasharray,
+    strokeDashoffset: isFarLod ? undefined : foregroundStyle.strokeDashoffset,
   };
   const capForegroundStyle: CSSProperties = {
     ...foregroundStyle,
@@ -232,6 +271,14 @@ export default function RoutedEdge(props: EdgeProps) {
     strokeDasharray: undefined,
     strokeDashoffset: undefined,
   };
+
+  if (isFarLod) {
+    return <BaseEdge id={props.id} path={simplifiedEdgePath} style={simplifiedStyle} interactionWidth={props.interactionWidth} />;
+  }
+
+  if (isMediumLod) {
+    return <BaseEdge id={props.id} path={mediumEdgePath} style={simplifiedStyle} interactionWidth={props.interactionWidth} />;
+  }
 
   return (
     <>
@@ -247,10 +294,10 @@ export default function RoutedEdge(props: EdgeProps) {
         style={foregroundStyle}
         interactionWidth={props.interactionWidth}
       />
-      {renderMarkerShapes(`${props.id}-start-bg`, startMarkerShapes, backgroundStyle)}
-      {renderMarkerShapes(`${props.id}-end-bg`, endMarkerShapes, backgroundStyle)}
-      {renderMarkerShapes(`${props.id}-start-fg`, startMarkerShapes, capForegroundStyle)}
-      {renderMarkerShapes(`${props.id}-end-fg`, endMarkerShapes, capForegroundStyle)}
+      {shouldRenderMarkers && renderMarkerShapes(`${props.id}-start-bg`, startMarkerShapes, backgroundStyle)}
+      {shouldRenderMarkers && renderMarkerShapes(`${props.id}-end-bg`, endMarkerShapes, backgroundStyle)}
+      {shouldRenderMarkers && renderMarkerShapes(`${props.id}-start-fg`, startMarkerShapes, capForegroundStyle)}
+      {shouldRenderMarkers && renderMarkerShapes(`${props.id}-end-fg`, endMarkerShapes, capForegroundStyle)}
 
       {shouldRenderLabel && (
         <EdgeLabelRenderer>
@@ -278,3 +325,5 @@ export default function RoutedEdge(props: EdgeProps) {
     </>
   );
 }
+
+export default memo(RoutedEdge);
