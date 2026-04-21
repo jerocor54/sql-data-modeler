@@ -1,0 +1,182 @@
+{
+  "generatedAt": "2026-04-21T02:42:11.501Z",
+  "command": "npm run benchmark:phase0 -- --presets=s,m,l,xl --iterations=3 --warmups=1 --output=docs/performance-baseline-results.phase-0.full.json",
+  "nodeVersion": "v22.14.0",
+  "platform": "darwin",
+  "cpuModel": "Apple M3 Pro",
+  "iterations": 3,
+  "warmups": 1,
+  "mode": "full",
+  "relationGrouping": "bundled",
+  "appElkTimeoutBudgetMs": 2500,
+  "results": [
+    {
+      "presetId": "s",
+      "presetLabel": "S",
+      "datasetVersion": "phase-0-v1",
+      "tableCount": 50,
+      "relationshipCount": 78,
+      "measuredIterations": 3,
+      "warmupIterations": 1,
+      "parse": {
+        "minMs": 3.61,
+        "medianMs": 4.58,
+        "averageMs": 5.64,
+        "maxMs": 8.73
+      },
+      "layout": {
+        "minMs": 327.68,
+        "medianMs": 332.33,
+        "averageMs": 334.29,
+        "maxMs": 342.85
+      },
+      "total": {
+        "minMs": 331.29,
+        "medianMs": 336.91,
+        "averageMs": 339.92,
+        "maxMs": 351.57
+      },
+      "appLayoutTimeoutExceeded": false,
+      "runs": [
+        {
+          "iteration": 1,
+          "parseMs": 4.58,
+          "layoutMs": 332.33,
+          "totalMs": 336.91,
+          "relationshipCount": 78,
+          "status": "success"
+        },
+        {
+          "iteration": 2,
+          "parseMs": 8.73,
+          "layoutMs": 342.85,
+          "totalMs": 351.57,
+          "relationshipCount": 78,
+          "status": "success"
+        },
+        {
+          "iteration": 3,
+          "parseMs": 3.61,
+          "layoutMs": 327.68,
+          "totalMs": 331.29,
+          "relationshipCount": 78,
+          "status": "success"
+        }
+      ]
+    },
+    {
+      "presetId": "m",
+      "presetLabel": "M",
+      "datasetVersion": "phase-0-v1",
+      "tableCount": 200,
+      "relationshipCount": 326,
+      "measuredIterations": 3,
+      "warmupIterations": 1,
+      "parse": {
+        "minMs": 35.43,
+        "medianMs": 37.84,
+        "averageMs": 37.23,
+        "maxMs": 38.42
+      },
+      "layout": {
+        "minMs": 26370.13,
+        "medianMs": 26555.97,
+        "averageMs": 26637.56,
+        "maxMs": 26986.59
+      },
+      "total": {
+        "minMs": 26407.98,
+        "medianMs": 26594.39,
+        "averageMs": 26674.8,
+        "maxMs": 27022.02
+      },
+      "appLayoutTimeoutExceeded": true,
+      "runs": [
+        {
+          "iteration": 1,
+          "parseMs": 38.42,
+          "layoutMs": 26555.97,
+          "totalMs": 26594.39,
+          "relationshipCount": 326,
+          "status": "success"
+        },
+        {
+          "iteration": 2,
+          "parseMs": 37.84,
+          "layoutMs": 26370.13,
+          "totalMs": 26407.98,
+          "relationshipCount": 326,
+          "status": "success"
+        },
+        {
+          "iteration": 3,
+          "parseMs": 35.43,
+          "layoutMs": 26986.59,
+          "totalMs": 27022.02,
+          "relationshipCount": 326,
+          "status": "success"
+        }
+      ]
+    },
+    {
+      "presetId": "l",
+      "presetLabel": "L",
+      "datasetVersion": "phase-0-v1",
+      "tableCount": 500,
+      "relationshipCount": 824,
+      "measuredIterations": 0,
+      "warmupIterations": 1,
+      "parse": {
+        "minMs": 206.97,
+        "medianMs": 206.97,
+        "averageMs": 206.97,
+        "maxMs": 206.97
+      },
+      "layout": null,
+      "total": null,
+      "appLayoutTimeoutExceeded": false,
+      "errorMessage": "Maximum call stack size exceeded",
+      "runs": [
+        {
+          "iteration": 1,
+          "parseMs": 206.97,
+          "layoutMs": 0,
+          "totalMs": 206.97,
+          "relationshipCount": 824,
+          "status": "error",
+          "errorMessage": "Maximum call stack size exceeded"
+        }
+      ]
+    },
+    {
+      "presetId": "xl",
+      "presetLabel": "XL",
+      "datasetVersion": "phase-0-v1",
+      "tableCount": 1000,
+      "relationshipCount": 1653,
+      "measuredIterations": 0,
+      "warmupIterations": 1,
+      "parse": {
+        "minMs": 862.44,
+        "medianMs": 862.44,
+        "averageMs": 862.44,
+        "maxMs": 862.44
+      },
+      "layout": null,
+      "total": null,
+      "appLayoutTimeoutExceeded": false,
+      "errorMessage": "Maximum call stack size exceeded",
+      "runs": [
+        {
+          "iteration": 1,
+          "parseMs": 862.44,
+          "layoutMs": 0,
+          "totalMs": 862.44,
+          "relationshipCount": 1653,
+          "status": "error",
+          "errorMessage": "Maximum call stack size exceeded"
+        }
+      ]
+    }
+  ]
+}

@@ -65,6 +65,11 @@ export interface ElkLayoutResult {
   edgePaths: Record<string, ElkEdgePath>;
 }
 
+export interface FallbackLayoutComputation {
+  layout: ElkLayoutResult;
+  mode: 'fallback' | 'emergency';
+}
+
 export interface LayoutPreferences {
   relationGrouping?: RelationGroupingMode;
 }
@@ -1259,6 +1264,39 @@ export async function createElkLayout(
   };
 }
 
+function createEmergencyGridPositions(tables: TableModel[]): Record<string, Position> {
+  if (tables.length === 0) return {};
+
+  const columnCount = Math.max(1, Math.ceil(Math.sqrt(tables.length)));
+  const horizontalGap = TABLE_NODE_WIDTH + 96;
+  const rowHeights: number[] = [];
+  const positions: Record<string, Position> = {};
+
+  for (const [index, table] of tables.entries()) {
+    const row = Math.floor(index / columnCount);
+    rowHeights[row] = Math.max(rowHeights[row] ?? 0, getTableNodeHeight(table) + 96);
+  }
+
+  const rowOffsets: number[] = [];
+  let nextRowY = 120;
+  for (let row = 0; row < rowHeights.length; row += 1) {
+    rowOffsets[row] = nextRowY;
+    nextRowY += rowHeights[row] ?? 0;
+  }
+
+  for (const [index, table] of tables.entries()) {
+    const column = index % columnCount;
+    const row = Math.floor(index / columnCount);
+
+    positions[table.key] = {
+      x: 120 + column * horizontalGap,
+      y: rowOffsets[row] ?? 120,
+    };
+  }
+
+  return positions;
+}
+
 export function createFallbackLayout(
   tables: TableModel[],
   relationships: Relationship[],
@@ -1272,4 +1310,28 @@ export function createFallbackLayout(
     positions,
     edgePaths: createFallbackEdgePaths(tables, relationships, positions, preferences),
   };
+}
+
+export function createSafeFallbackLayout(
+  tables: TableModel[],
+  relationships: Relationship[],
+  persistedPositions: Record<string, Position>,
+  preferences: LayoutPreferences = {},
+): FallbackLayoutComputation {
+  try {
+    return {
+      layout: createFallbackLayout(tables, relationships, persistedPositions, preferences),
+      mode: 'fallback',
+    };
+  } catch {
+    const positions = createEmergencyGridPositions(tables);
+
+    return {
+      layout: {
+        positions,
+        edgePaths: createFallbackEdgePaths(tables, relationships, positions, preferences),
+      },
+      mode: 'emergency',
+    };
+  }
 }

@@ -186,8 +186,8 @@ Cada fase se ejecuta así:
 
 | Fase | Nombre | Estado |
 | --- | --- | --- |
-| 0 | Baseline, datasets y budgets | **Siguiente** |
-| 1 | Abrir seams arquitectónicos mínimos | Pendiente |
+| 0 | Baseline, datasets y budgets | **Cerrada con caveats explícitos** |
+| 1 | Abrir seams arquitectónicos mínimos | **Lista para arrancar** |
 | 2 | Pipeline off-main-thread | Pendiente |
 | 3 | Estado, render y React Flow | Pendiente |
 | 4 | UX para modelos gigantes | Pendiente |
@@ -221,22 +221,30 @@ Si no medimos ahora, después no sabremos si una mejora fue real, parcial o imag
 ## Paso a paso
 
 1. Crear datasets representativos:
-   - [ ] S: ~50 tablas
-   - [ ] M: ~200 tablas
-   - [ ] L: ~500 tablas
-   - [ ] XL: ~1000 tablas
-   - [ ] XXL: ~3000 tablas
+   - [x] S: ~50 tablas
+   - [x] M: ~200 tablas
+   - [x] L: ~500 tablas
+   - [x] XL: ~1000 tablas
+   - [x] XXL: ~3000 tablas
 2. Definir exactamente qué se medirá:
-   - [ ] tiempo de parseo
-   - [ ] tiempo de layout
-   - [ ] tiempo hasta primer diagrama usable
+   - [x] tiempo de parseo
+   - [x] tiempo de layout
+   - [x] tiempo hasta primer diagrama usable
    - [ ] tiempo de bloqueo del main thread
    - [ ] memoria aproximada
    - [ ] FPS en pan/zoom
    - [ ] latencia al editar SQL
 3. Agregar `performance.mark` / `performance.measure` en puntos clave.
+   - [x] parse
+   - [x] layout
+   - [x] total hasta diagrama usable
 4. Documentar budgets iniciales por tamaño.
+   - [x] definir budgets formales por preset
 5. Guardar resultados base para poder comparar antes/después.
+   - [x] historial reciente visible en UI de benchmark
+   - [x] copia JSON de corridas para persistir baseline manualmente
+   - [x] CLI reproducible para baseline automatizado sin build previo
+   - [x] artefactos JSON versionados con corridas base reales
 
 ## Qué NO hacer en esta fase
 
@@ -246,12 +254,50 @@ Si no medimos ahora, después no sabremos si una mejora fue real, parcial o imag
 
 ## Validación
 
-- [ ] Podemos correr cada dataset y obtener números comparables.
-- [ ] Sabemos cuál es el cuello principal por tamaño.
+- [x] Podemos correr cada dataset y obtener números comparables.
+- [x] Sabemos cuál es el cuello principal por tamaño.
 
 ## Criterio de salida
 
 La fase termina solo cuando existe un baseline claro y repetible.
+
+### Artefactos creados en esta rama
+
+- `src/features/performance/benchmarkDatasets.ts` — datasets sintéticos determinísticos versionados (`phase-0-v1`)
+- `src/features/performance/diagramPerformance.ts` — instrumentación reusable con `performance.mark` / `performance.measure`
+- `src/features/performance/BenchmarkPanel.tsx` — UI explícita para correr baseline y copiar resultados
+- `src/pages/benchmark.astro` — ruta dedicada para benchmark manual
+- `scripts/performance/runPhase0Baseline.ts` — CLI reproducible para medir parse + ELK sin build
+- `docs/performance-baseline.md` — guía actualizada de uso, resultados, budgets y caveats
+- `docs/performance-baseline-results.phase-0.full.json` — corrida full de referencia (S/M + evidencia de falla en L/XL)
+- `docs/performance-baseline-results.phase-0.parse-only.json` — corrida parse-only de referencia (S/M/L/XL/XXL)
+
+### Alcance real de esta entrega
+
+Esta implementación deja resueltos:
+
+- datasets repetibles
+- baseline manual de parse/layout/total usable dentro de la app
+- baseline automatizado reproducible para parse + ELK desde CLI
+- primera tanda real de resultados base por preset
+- budgets iniciales documentados
+
+### Resultado real del baseline capturado
+
+- `S` corre bien en full mode (~334 ms layout promedio).
+- `M` deja claro que ELK domina el costo actual (~26.6 s layout promedio) y supera brutalmente el timeout de 2500 ms de la app.
+- `L` y `XL` fallan en full mode con `Maximum call stack size exceeded`.
+- `XXL` quedó medible en parse-only (~7.94 s promedio), pero full mode no completó dentro de 300000 ms.
+
+### Caveats explícitos que NO bloquean el pase a Fase 1
+
+- falta capturar una tanda equivalente de “total usable” en browser real para documentar el lado UI con la ruta `/benchmark`
+- memoria aproximada
+- FPS en pan/zoom
+- latencia al editar SQL
+- bloqueo fino del main thread
+
+Estos puntos siguen vigentes, PERO ya no bloquean pasar a Fase 1 porque el objetivo real de salida de Fase 0 era tener un baseline claro, repetible y con evidencia suficiente para atacar hotspots reales.
 
 ---
 
@@ -679,7 +725,7 @@ Vamos bien si:
 
 ### Etapa actual
 
-## **Fase 0 — Baseline, datasets y budgets**
+## **Fase 1 — Abrir seams arquitectónicos mínimos**
 
 ### No hay discusión acá
 
@@ -687,9 +733,8 @@ Si arrancamos por otra cosa, vamos a improvisar.
 
 ### Resultado que necesitamos antes de seguir
 
-- datasets listos
-- métricas listadas
-- baseline medido
-- budgets iniciales documentados
+- no seguir agregando responsabilidad en `ERDApp.tsx`
+- abrir contrato claro para parse/layout/orquestación
+- preparar el terreno para sacar trabajo pesado del main thread en la fase siguiente
 
-Recién después de eso se abre la **Fase 1**.
+La Fase 0 quedó suficientemente cerrada como para habilitar este arranque, con caveats documentados en `docs/performance-baseline.md`.

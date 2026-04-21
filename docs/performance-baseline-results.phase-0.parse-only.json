@@ -1,0 +1,259 @@
+{
+  "generatedAt": "2026-04-21T02:42:42.899Z",
+  "command": "npm run benchmark:phase0 -- --mode=parse-only --presets=s,m,l,xl,xxl --iterations=3 --warmups=0 --output=docs/performance-baseline-results.phase-0.parse-only.json",
+  "nodeVersion": "v22.14.0",
+  "platform": "darwin",
+  "cpuModel": "Apple M3 Pro",
+  "iterations": 3,
+  "warmups": 0,
+  "mode": "parse-only",
+  "relationGrouping": "bundled",
+  "appElkTimeoutBudgetMs": 2500,
+  "results": [
+    {
+      "presetId": "s",
+      "presetLabel": "S",
+      "datasetVersion": "phase-0-v1",
+      "tableCount": 50,
+      "relationshipCount": 78,
+      "measuredIterations": 3,
+      "warmupIterations": 0,
+      "parse": {
+        "minMs": 2.94,
+        "medianMs": 3.38,
+        "averageMs": 4.31,
+        "maxMs": 6.61
+      },
+      "layout": null,
+      "total": {
+        "minMs": 2.94,
+        "medianMs": 3.38,
+        "averageMs": 4.31,
+        "maxMs": 6.61
+      },
+      "appLayoutTimeoutExceeded": false,
+      "runs": [
+        {
+          "iteration": 1,
+          "parseMs": 6.61,
+          "layoutMs": 0,
+          "totalMs": 6.61,
+          "relationshipCount": 78,
+          "status": "success"
+        },
+        {
+          "iteration": 2,
+          "parseMs": 3.38,
+          "layoutMs": 0,
+          "totalMs": 3.38,
+          "relationshipCount": 78,
+          "status": "success"
+        },
+        {
+          "iteration": 3,
+          "parseMs": 2.94,
+          "layoutMs": 0,
+          "totalMs": 2.94,
+          "relationshipCount": 78,
+          "status": "success"
+        }
+      ]
+    },
+    {
+      "presetId": "m",
+      "presetLabel": "M",
+      "datasetVersion": "phase-0-v1",
+      "tableCount": 200,
+      "relationshipCount": 326,
+      "measuredIterations": 3,
+      "warmupIterations": 0,
+      "parse": {
+        "minMs": 35.36,
+        "medianMs": 36.94,
+        "averageMs": 36.54,
+        "maxMs": 37.31
+      },
+      "layout": null,
+      "total": {
+        "minMs": 35.36,
+        "medianMs": 36.94,
+        "averageMs": 36.54,
+        "maxMs": 37.31
+      },
+      "appLayoutTimeoutExceeded": false,
+      "runs": [
+        {
+          "iteration": 1,
+          "parseMs": 36.94,
+          "layoutMs": 0,
+          "totalMs": 36.94,
+          "relationshipCount": 326,
+          "status": "success"
+        },
+        {
+          "iteration": 2,
+          "parseMs": 37.31,
+          "layoutMs": 0,
+          "totalMs": 37.31,
+          "relationshipCount": 326,
+          "status": "success"
+        },
+        {
+          "iteration": 3,
+          "parseMs": 35.36,
+          "layoutMs": 0,
+          "totalMs": 35.36,
+          "relationshipCount": 326,
+          "status": "success"
+        }
+      ]
+    },
+    {
+      "presetId": "l",
+      "presetLabel": "L",
+      "datasetVersion": "phase-0-v1",
+      "tableCount": 500,
+      "relationshipCount": 824,
+      "measuredIterations": 3,
+      "warmupIterations": 0,
+      "parse": {
+        "minMs": 214.52,
+        "medianMs": 214.89,
+        "averageMs": 216.93,
+        "maxMs": 221.39
+      },
+      "layout": null,
+      "total": {
+        "minMs": 214.52,
+        "medianMs": 214.89,
+        "averageMs": 216.93,
+        "maxMs": 221.39
+      },
+      "appLayoutTimeoutExceeded": false,
+      "runs": [
+        {
+          "iteration": 1,
+          "parseMs": 214.52,
+          "layoutMs": 0,
+          "totalMs": 214.52,
+          "relationshipCount": 824,
+          "status": "success"
+        },
+        {
+          "iteration": 2,
+          "parseMs": 214.89,
+          "layoutMs": 0,
+          "totalMs": 214.89,
+          "relationshipCount": 824,
+          "status": "success"
+        },
+        {
+          "iteration": 3,
+          "parseMs": 221.39,
+          "layoutMs": 0,
+          "totalMs": 221.39,
+          "relationshipCount": 824,
+          "status": "success"
+        }
+      ]
+    },
+    {
+      "presetId": "xl",
+      "presetLabel": "XL",
+      "datasetVersion": "phase-0-v1",
+      "tableCount": 1000,
+      "relationshipCount": 1653,
+      "measuredIterations": 3,
+      "warmupIterations": 0,
+      "parse": {
+        "minMs": 810.21,
+        "medianMs": 831.95,
+        "averageMs": 825.39,
+        "maxMs": 834.01
+      },
+      "layout": null,
+      "total": {
+        "minMs": 810.21,
+        "medianMs": 831.95,
+        "averageMs": 825.39,
+        "maxMs": 834.01
+      },
+      "appLayoutTimeoutExceeded": false,
+      "runs": [
+        {
+          "iteration": 1,
+          "parseMs": 831.95,
+          "layoutMs": 0,
+          "totalMs": 831.95,
+          "relationshipCount": 1653,
+          "status": "success"
+        },
+        {
+          "iteration": 2,
+          "parseMs": 834.01,
+          "layoutMs": 0,
+          "totalMs": 834.01,
+          "relationshipCount": 1653,
+          "status": "success"
+        },
+        {
+          "iteration": 3,
+          "parseMs": 810.21,
+          "layoutMs": 0,
+          "totalMs": 810.21,
+          "relationshipCount": 1653,
+          "status": "success"
+        }
+      ]
+    },
+    {
+      "presetId": "xxl",
+      "presetLabel": "XXL",
+      "datasetVersion": "phase-0-v1",
+      "tableCount": 3000,
+      "relationshipCount": 4969,
+      "measuredIterations": 3,
+      "warmupIterations": 0,
+      "parse": {
+        "minMs": 7885.3,
+        "medianMs": 7917.94,
+        "averageMs": 7943.08,
+        "maxMs": 8025.99
+      },
+      "layout": null,
+      "total": {
+        "minMs": 7885.3,
+        "medianMs": 7917.94,
+        "averageMs": 7943.08,
+        "maxMs": 8025.99
+      },
+      "appLayoutTimeoutExceeded": false,
+      "runs": [
+        {
+          "iteration": 1,
+          "parseMs": 7917.94,
+          "layoutMs": 0,
+          "totalMs": 7917.94,
+          "relationshipCount": 4969,
+          "status": "success"
+        },
+        {
+          "iteration": 2,
+          "parseMs": 8025.99,
+          "layoutMs": 0,
+          "totalMs": 8025.99,
+          "relationshipCount": 4969,
+          "status": "success"
+        },
+        {
+          "iteration": 3,
+          "parseMs": 7885.3,
+          "layoutMs": 0,
+          "totalMs": 7885.3,
+          "relationshipCount": 4969,
+          "status": "success"
+        }
+      ]
+    }
+  ]
+}

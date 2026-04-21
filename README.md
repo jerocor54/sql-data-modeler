@@ -66,11 +66,15 @@ Todos los comandos se ejecutan desde la raíz del proyecto.
 | `npm run build` | Genera la versión de producción |
 | `npm run preview` | Previsualiza el build |
 | `npx tsc --noEmit` | Valida tipos sin generar archivos |
+| `npm run benchmark:phase0 -- --output docs/performance-baseline-results.phase-0.json` | Corre el baseline reproducible de parse + layout y guarda un reporte JSON |
 
 ## Documentación del proyecto
 
 - `AGENT.md` — guía técnica para construir y evolucionar el proyecto con las lecciones ya aprendidas
 - `PRD.md` — documento de producto con visión inicial, alcance MVP y roadmap sugerido
+- `PERFORMANCE_OPTIMIZATION_PLAN.md` — plan maestro de refactor + performance por fases
+- `docs/performance-baseline.md` — guía del baseline reproducible de la Fase 0 (CLI + navegador)
+- `docs/performance-baseline-results.phase-0.json` — última corrida base automatizada de la Fase 0
 
 ## Deploy en GitHub Pages
 

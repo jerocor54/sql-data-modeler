@@ -1,10 +1,14 @@
 import AppErrorBoundary from './AppErrorBoundary';
 import ERDApp from './ERDApp';
 
-export default function AppRoot() {
+interface AppRootProps {
+  mode?: 'app' | 'benchmark';
+}
+
+export default function AppRoot({ mode = 'app' }: AppRootProps) {
   return (
     <AppErrorBoundary>
-      <ERDApp />
+      <ERDApp mode={mode} />
     </AppErrorBoundary>
   );
 }
