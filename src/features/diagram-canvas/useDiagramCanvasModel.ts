@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 import { useEdgesState, useNodesState, type Edge, type Node as FlowNode } from '@xyflow/react';
 
 import type { ElkLayoutResult } from '../../lib/elkLayout';
@@ -15,8 +15,24 @@ import type {
   ThemeMode,
   TypeDisplayMode,
 } from '../../types/erd';
-import { buildDiagramCanvasGraph } from './buildDiagramCanvasGraph';
+import {
+  buildDiagramCanvasEdges,
+  buildDiagramCanvasGraph,
+  resolveDiagramTablePositions,
+  type DiagramCanvasGraph,
+} from './buildDiagramCanvasGraph';
 import type { RoutedEdgeData, TableNodeData } from './diagramCanvasTypes';
+
+const DEFERRED_EDGE_REFINEMENT_DELAY_MS = 96;
+const MAX_DEFERRED_FULL_REFINEMENT_EDGES = 16;
+
+function shouldDeferFullEdgeRefinement(affectedEdgeCount: number, effectiveLineStyle: RelationLineStyle): boolean {
+  return (
+    effectiveLineStyle === 'orthogonal' &&
+    affectedEdgeCount > 0 &&
+    affectedEdgeCount <= MAX_DEFERRED_FULL_REFINEMENT_EDGES
+  );
+}
 
 function isTableNodeDataEqual(left: TableNodeData, right: TableNodeData): boolean {
   return (
@@ -65,12 +81,56 @@ function isEdgeDataEqual(left: RoutedEdgeData, right: RoutedEdgeData): boolean {
     left.labelX === right.labelX &&
     left.labelY === right.labelY &&
     left.showLabel === right.showLabel &&
+    left.deferredRouting === right.deferredRouting &&
+    left.draggingPreview === right.draggingPreview &&
     arePointsEqual(left.points, right.points) &&
     left.cardinality?.source.min === right.cardinality?.source.min &&
     left.cardinality?.source.max === right.cardinality?.source.max &&
     left.cardinality?.target.min === right.cardinality?.target.min &&
     left.cardinality?.target.max === right.cardinality?.target.max
   );
+}
+
+function getAffectedRelationshipIds(parsed: ParseResult, tableKeys: Iterable<string>): Set<string> {
+  const tableKeySet = tableKeys instanceof Set ? tableKeys : new Set(tableKeys);
+
+  return new Set(
+    parsed.relationships
+      .filter(
+        (relationship) =>
+          tableKeySet.has(relationship.sourceTable) || tableKeySet.has(relationship.targetTable),
+      )
+      .map((relationship) => relationship.id),
+  );
+}
+
+function patchEdgesForDraggingPreview(previousEdges: Edge[], affectedEdgeIds: ReadonlySet<string>): Edge[] {
+  if (affectedEdgeIds.size === 0) return previousEdges;
+  let changed = false;
+
+  const nextEdges = previousEdges.map((edge) => {
+    if (!affectedEdgeIds.has(edge.id)) return edge;
+
+    const previousData = (edge.data ?? {}) as RoutedEdgeData;
+    if (previousData.draggingPreview) return edge;
+
+    changed = true;
+    return {
+      ...edge,
+      data: {
+        ...previousData,
+        path: undefined,
+        points: undefined,
+        labelX: undefined,
+        labelY: undefined,
+        showLabel: false,
+        draggingPreview: true,
+        deferredRouting: true,
+      } satisfies RoutedEdgeData,
+    };
+  });
+
+  return changed ? nextEdges : previousEdges;
 }
 
 function areEdgesEquivalent(left: Edge, right: Edge): boolean {
@@ -126,6 +186,101 @@ interface DiagramCanvasInteractionHandlers {
   onTableStyleChange: (tableKey: string, patch: Partial<TableVisualConfig>) => void;
 }
 
+interface GraphStructureInputs extends DiagramCanvasInteractionHandlers {
+  effectiveLineStyle: RelationLineStyle;
+  elkLayout: ElkLayoutResult;
+  globalTypeMode: TypeDisplayMode;
+  hasManualLayout: boolean;
+  linePattern: RelationLinePattern;
+  parsed: ParseResult;
+  relationGrouping: RelationGroupingMode;
+  tableConfig: Record<string, TableVisualConfig>;
+  tableMap: Map<string, TableModel>;
+  tableDesignTheme: TableDesignTheme;
+  theme: ThemeMode;
+}
+
+interface DiagramCanvasGraphSnapshot {
+  graph: DiagramCanvasGraph;
+  resolvedPositions: Record<string, Position | DiagramViewport>;
+  structureInputs: GraphStructureInputs;
+}
+
+function areStructureInputsEqual(left: GraphStructureInputs, right: GraphStructureInputs): boolean {
+  return (
+    left.effectiveLineStyle === right.effectiveLineStyle &&
+    left.elkLayout === right.elkLayout &&
+    left.globalTypeMode === right.globalTypeMode &&
+    left.hasManualLayout === right.hasManualLayout &&
+    left.linePattern === right.linePattern &&
+    left.onColumnSelect === right.onColumnSelect &&
+    left.onGoToSql === right.onGoToSql &&
+    left.onPreview === right.onPreview &&
+    left.onTableStyleChange === right.onTableStyleChange &&
+    left.parsed === right.parsed &&
+    left.relationGrouping === right.relationGrouping &&
+    left.tableConfig === right.tableConfig &&
+    left.tableMap === right.tableMap &&
+    left.tableDesignTheme === right.tableDesignTheme &&
+    left.theme === right.theme
+  );
+}
+
+function getMovedTableKeys(
+  parsed: ParseResult,
+  previousPositions: Record<string, Position | DiagramViewport>,
+  nextPositions: Record<string, Position | DiagramViewport>,
+): string[] {
+  return parsed.tables.flatMap((table) => {
+    const previous = previousPositions[table.key];
+    const next = nextPositions[table.key];
+
+    if (!previous || !next) return [];
+    return previous.x !== next.x || previous.y !== next.y ? [table.key] : [];
+  });
+}
+
+function patchNodePositions(previousNodes: FlowNode[], nextPositions: Record<string, Position | DiagramViewport>): FlowNode[] {
+  let changed = false;
+
+  const nextNodes = previousNodes.map((node) => {
+    const nextPosition = nextPositions[node.id];
+    if (!nextPosition) return node;
+    if (node.position.x === nextPosition.x && node.position.y === nextPosition.y) return node;
+
+    changed = true;
+    return {
+      ...node,
+      position: {
+        x: nextPosition.x,
+        y: nextPosition.y,
+      },
+    };
+  });
+
+  return changed ? nextNodes : previousNodes;
+}
+
+function patchAffectedEdges(previousEdges: Edge[], nextAffectedEdges: Edge[], affectedEdgeIds: ReadonlySet<string>): Edge[] {
+  if (affectedEdgeIds.size === 0) return previousEdges;
+
+  const nextAffectedEdgesById = new Map(nextAffectedEdges.map((edge) => [edge.id, edge]));
+  let changed = false;
+
+  const nextEdges = previousEdges.map((edge) => {
+    if (!affectedEdgeIds.has(edge.id)) return edge;
+
+    const nextEdge = nextAffectedEdgesById.get(edge.id);
+    if (!nextEdge) return edge;
+    if (areEdgesEquivalent(edge, nextEdge)) return edge;
+
+    changed = true;
+    return nextEdge;
+  });
+
+  return changed ? nextEdges : previousEdges;
+}
+
 interface UseDiagramCanvasModelInput extends DiagramCanvasInteractionHandlers {
   effectiveLineStyle: RelationLineStyle;
   globalTypeMode: TypeDisplayMode;
@@ -161,30 +316,57 @@ export function useDiagramCanvasModel({
 }: UseDiagramCanvasModelInput) {
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const previousGraphRef = useRef<DiagramCanvasGraphSnapshot | null>(null);
+  const deferredEdgeRefinementTimerRef = useRef<number | null>(null);
+  const deferredEdgeRefinementRevisionRef = useRef(0);
 
-  const graph = useMemo(
-    () =>
-      elkLayout
-        ? buildDiagramCanvasGraph({
-            effectiveLineStyle,
-            elkLayout,
-            globalTypeMode,
-            hasManualLayout,
-            linePattern,
-            onColumnSelect,
-            onGoToSql,
-            onPreview,
-            onTableStyleChange,
-            parsed,
-            relationGrouping,
-            tableConfig,
-            tableMap,
-            tableDesignTheme,
-            tablePositions,
-            theme,
-          })
-        : null,
-    [
+  useEffect(
+    () => () => {
+      if (deferredEdgeRefinementTimerRef.current !== null) {
+        window.clearTimeout(deferredEdgeRefinementTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const handleNodeDragStart = (tableKey: string) => {
+    const affectedRelationshipIds = getAffectedRelationshipIds(parsed, [tableKey]);
+    if (affectedRelationshipIds.size === 0) return;
+
+    if (deferredEdgeRefinementTimerRef.current !== null) {
+      window.clearTimeout(deferredEdgeRefinementTimerRef.current);
+      deferredEdgeRefinementTimerRef.current = null;
+    }
+
+    setEdges((current) => {
+      const nextEdges = patchEdgesForDraggingPreview(current, affectedRelationshipIds);
+
+      if (previousGraphRef.current && nextEdges !== current) {
+        previousGraphRef.current = {
+          ...previousGraphRef.current,
+          graph: {
+            ...previousGraphRef.current.graph,
+            edges: patchEdgesForDraggingPreview(previousGraphRef.current.graph.edges, affectedRelationshipIds),
+          },
+        };
+      }
+
+      return nextEdges;
+    });
+  };
+
+  useEffect(() => {
+    if (!elkLayout) return;
+
+    if (deferredEdgeRefinementTimerRef.current !== null) {
+      window.clearTimeout(deferredEdgeRefinementTimerRef.current);
+      deferredEdgeRefinementTimerRef.current = null;
+    }
+
+    deferredEdgeRefinementRevisionRef.current += 1;
+    const refinementRevision = deferredEdgeRefinementRevisionRef.current;
+
+    const structureInputs: GraphStructureInputs = {
       effectiveLineStyle,
       elkLayout,
       globalTypeMode,
@@ -199,20 +381,142 @@ export function useDiagramCanvasModel({
       tableConfig,
       tableMap,
       tableDesignTheme,
-      tablePositions,
       theme,
-    ],
-  );
+    };
+    const resolvedPositions = resolveDiagramTablePositions(parsed, elkLayout, tablePositions);
+    const previous = previousGraphRef.current;
+    const movedTableKeys = previous
+      ? getMovedTableKeys(parsed, previous.resolvedPositions, resolvedPositions)
+      : [];
 
-  useEffect(() => {
-    if (!graph) return;
+    const shouldIncrementallyPatch =
+      previous !== null &&
+      areStructureInputsEqual(previous.structureInputs, structureInputs) &&
+      movedTableKeys.length > 0 &&
+      movedTableKeys.length <= 2;
 
-    setNodes((current) => reconcileCollection(current, graph.nodes, areNodesEquivalent));
-    setEdges((current) => reconcileCollection(current, graph.edges, areEdgesEquivalent));
-  }, [graph, setEdges, setNodes]);
+    let nextGraph: DiagramCanvasGraph;
+
+    if (shouldIncrementallyPatch && previous) {
+      const movedTableKeySet = new Set(movedTableKeys);
+      const affectedRelationshipIds = getAffectedRelationshipIds(parsed, movedTableKeySet);
+      const shouldScheduleDeferredFullRefinement = shouldDeferFullEdgeRefinement(
+        affectedRelationshipIds.size,
+        effectiveLineStyle,
+      );
+      const nextNodes = patchNodePositions(previous.graph.nodes, resolvedPositions);
+      const seedEdges = previous.graph.edges.filter((edge) => !affectedRelationshipIds.has(edge.id));
+      const nextAffectedEdges = buildDiagramCanvasEdges({
+        effectiveLineStyle,
+        elkLayout,
+        globalTypeMode,
+        hasManualLayout,
+        linePattern,
+        parsed,
+        relationGrouping,
+        resolvedPositions,
+        routingMode: 'simplified',
+        renderRelationshipIds: affectedRelationshipIds,
+        seedEdges,
+        tableMap,
+      });
+      const nextEdges = patchAffectedEdges(previous.graph.edges, nextAffectedEdges, affectedRelationshipIds);
+
+      nextGraph = {
+        edges: nextEdges,
+        nodes: nextNodes,
+      };
+
+      if (shouldScheduleDeferredFullRefinement) {
+        deferredEdgeRefinementTimerRef.current = window.setTimeout(() => {
+          if (deferredEdgeRefinementRevisionRef.current !== refinementRevision) return;
+
+          const currentSnapshot = previousGraphRef.current;
+          if (!currentSnapshot || !areStructureInputsEqual(currentSnapshot.structureInputs, structureInputs)) return;
+
+          const refinementSeedEdges = currentSnapshot.graph.edges.filter((edge) => !affectedRelationshipIds.has(edge.id));
+          const refinedAffectedEdges = buildDiagramCanvasEdges({
+            effectiveLineStyle,
+            elkLayout,
+            globalTypeMode,
+            hasManualLayout,
+            linePattern,
+            parsed,
+            relationGrouping,
+            resolvedPositions,
+            routingMode: 'full',
+            renderRelationshipIds: affectedRelationshipIds,
+            seedEdges: refinementSeedEdges,
+            tableMap,
+          });
+
+          previousGraphRef.current = {
+            ...currentSnapshot,
+            graph: {
+              ...currentSnapshot.graph,
+              edges: patchAffectedEdges(currentSnapshot.graph.edges, refinedAffectedEdges, affectedRelationshipIds),
+            },
+          };
+
+          setEdges((current) => patchAffectedEdges(current, refinedAffectedEdges, affectedRelationshipIds));
+          deferredEdgeRefinementTimerRef.current = null;
+        }, DEFERRED_EDGE_REFINEMENT_DELAY_MS);
+      } else {
+        deferredEdgeRefinementTimerRef.current = null;
+      }
+    } else {
+      nextGraph = buildDiagramCanvasGraph({
+        effectiveLineStyle,
+        elkLayout,
+        globalTypeMode,
+        hasManualLayout,
+        linePattern,
+        onColumnSelect,
+        onGoToSql,
+        onPreview,
+        onTableStyleChange,
+        parsed,
+        relationGrouping,
+        tableConfig,
+        tableMap,
+        tableDesignTheme,
+        tablePositions,
+        theme,
+      });
+    }
+
+    previousGraphRef.current = {
+      graph: nextGraph,
+      resolvedPositions,
+      structureInputs,
+    };
+
+    setNodes((current) => reconcileCollection(current, nextGraph.nodes, areNodesEquivalent));
+    setEdges((current) => reconcileCollection(current, nextGraph.edges, areEdgesEquivalent));
+  }, [
+    effectiveLineStyle,
+    elkLayout,
+    globalTypeMode,
+    hasManualLayout,
+    linePattern,
+    onColumnSelect,
+    onGoToSql,
+    onPreview,
+    onTableStyleChange,
+    parsed,
+    relationGrouping,
+    setEdges,
+    setNodes,
+    tableConfig,
+    tableMap,
+    tableDesignTheme,
+    tablePositions,
+    theme,
+  ]);
 
   return {
     edges,
+    handleNodeDragStart,
     nodes,
     onEdgesChange,
     onNodesChange,

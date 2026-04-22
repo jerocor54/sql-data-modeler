@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Editor, loader, type BeforeMount, type OnMount } from '@monaco-editor/react';
 import { Download, FolderOpen, MoreHorizontal, Save } from 'lucide-react';
 import { downloadTextFile, getCursorIndexForLine } from '../lib/download';
@@ -98,7 +98,9 @@ export default function SqlEditorPanel({
   const actionsTriggerRef = useRef<HTMLButtonElement>(null);
   const [openActionsMenu, setOpenActionsMenu] = useState(false);
   const [editorReady, setEditorReady] = useState(false);
-  const [useFallbackEditor, setUseFallbackEditor] = useState(false);
+  const [monacoLoadState, setMonacoLoadState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
+  const [monacoLoadAttempt, setMonacoLoadAttempt] = useState(0);
+  const [textareaFocused, setTextareaFocused] = useState(false);
   const [resolvedTheme, setResolvedTheme] = useState<ThemeMode>(() => readDocumentTheme() ?? theme);
   const [selectionCharacterCount, setSelectionCharacterCount] = useState<number | null>(null);
 
@@ -108,13 +110,41 @@ export default function SqlEditorPanel({
     [warnings],
   );
 
+  const requestMonacoLoad = useCallback(() => {
+    setMonacoLoadAttempt((attempt) => attempt + 1);
+  }, []);
+
+  const showTextareaEditor = monacoLoadState !== 'ready' || textareaFocused;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (monacoLoadState !== 'idle') return;
+
+    if ('requestIdleCallback' in window) {
+      const idleCallbackId = window.requestIdleCallback(() => {
+        requestMonacoLoad();
+      }, { timeout: 3000 });
+
+      return () => window.cancelIdleCallback(idleCallbackId);
+    }
+
+    const timer = globalThis.setTimeout(() => {
+      requestMonacoLoad();
+    }, 1800);
+
+    return () => globalThis.clearTimeout(timer);
+  }, [monacoLoadState, requestMonacoLoad]);
+
   useEffect(() => {
     let cancelled = false;
+
+    if (monacoLoadAttempt === 0 || monacoLoadState === 'loading' || monacoLoadState === 'ready') return;
 
     const setupMonacoLoader = async () => {
       if (typeof window === 'undefined') return;
 
       try {
+        setMonacoLoadState('loading');
         self.MonacoEnvironment = {
           getWorker() {
             return new editorWorker();
@@ -125,8 +155,12 @@ export default function SqlEditorPanel({
         if (cancelled) return;
         defineEditorThemes(monaco);
         loader.config({ monaco });
+        setMonacoLoadState('ready');
       } catch {
-        if (!cancelled) setUseFallbackEditor(true);
+        if (!cancelled) {
+          setMonacoLoadState('failed');
+          setEditorReady(false);
+        }
       }
     };
 
@@ -135,7 +169,7 @@ export default function SqlEditorPanel({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [monacoLoadAttempt]);
 
   useEffect(() => {
     if (!themeReady) {
@@ -164,14 +198,17 @@ export default function SqlEditorPanel({
   }, [openActionsMenu]);
 
   useEffect(() => {
-    if (editorReady || useFallbackEditor) return;
+    if (editorReady || monacoLoadState !== 'loading') return;
 
     const timer = window.setTimeout(() => {
-      if (!editorReady) setUseFallbackEditor(true);
+      if (!editorReady) {
+        setMonacoLoadState('failed');
+        setEditorReady(false);
+      }
     }, 4500);
 
     return () => window.clearTimeout(timer);
-  }, [editorReady, useFallbackEditor]);
+  }, [editorReady, monacoLoadState]);
 
   const onBeforeEditorMount: BeforeMount = (monaco) => {
     defineEditorThemes(monaco);
@@ -181,14 +218,14 @@ export default function SqlEditorPanel({
     editorRef.current = editor;
     monacoRef.current = monaco;
     setEditorReady(true);
-    setUseFallbackEditor(false);
+    setMonacoLoadState('ready');
 
     defineEditorThemes(monaco);
     monaco.editor.setTheme(getEditorTheme(resolvedTheme));
   };
 
   useEffect(() => {
-    if (useFallbackEditor || !editorRef.current) {
+    if (showTextareaEditor || !editorRef.current) {
       setSelectionCharacterCount(null);
       return;
     }
@@ -208,7 +245,7 @@ export default function SqlEditorPanel({
       selectionDisposable.dispose();
       contentDisposable.dispose();
     };
-  }, [editorReady, useFallbackEditor]);
+  }, [editorReady, showTextareaEditor]);
 
   useEffect(() => {
     if (!monacoRef.current) return;
@@ -218,7 +255,7 @@ export default function SqlEditorPanel({
   useEffect(() => {
     if (!onGoToLine) return;
 
-    if (useFallbackEditor) {
+    if (showTextareaEditor) {
       if (fallbackTextareaRef.current) {
         const index = getCursorIndexForLine(sqlText, onGoToLine);
         fallbackTextareaRef.current.focus();
@@ -240,7 +277,7 @@ export default function SqlEditorPanel({
     editorRef.current.focus();
 
     onGoToLineHandled();
-  }, [editorReady, onGoToLine, onGoToLineHandled, sqlText, useFallbackEditor]);
+  }, [editorReady, onGoToLine, onGoToLineHandled, showTextareaEditor, sqlText]);
 
   return (
     <section className="panel-card" style={{ display: 'grid', gridTemplateRows: 'auto 1fr auto', minHeight: 0, height: '100%', padding: 12 }}>
@@ -375,13 +412,13 @@ export default function SqlEditorPanel({
       </div>
 
       <div className="field" style={{ minHeight: 0, overflow: 'hidden', borderRadius: 12 }}>
-        {useFallbackEditor ? (
+        {showTextareaEditor ? (
           <div style={{ height: '100%', display: 'grid', gridTemplateRows: 'auto 1fr' }}>
             <div
               style={{
                 padding: '8px 10px',
                 fontSize: 12,
-                color: '#f59e0b',
+                color: monacoLoadState === 'failed' ? '#f59e0b' : 'var(--text-muted)',
                 borderBottom: '1px solid var(--border)',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -389,27 +426,57 @@ export default function SqlEditorPanel({
                 gap: 8,
               }}
             >
-              <span>Modo fallback activo: Monaco no respondió a tiempo.</span>
-              <button
-                className="btn btn-sm"
-                onClick={() => {
-                  setEditorReady(false);
-                  setUseFallbackEditor(false);
-                }}
-              >
-                Reintentar Monaco
-              </button>
+              {monacoLoadState === 'failed' ? (
+                <>
+                  <span>Modo fallback activo: Monaco no respondió a tiempo.</span>
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => {
+                      setEditorReady(false);
+                      setMonacoLoadState('idle');
+                      requestMonacoLoad();
+                    }}
+                  >
+                    Reintentar Monaco
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span>
+                    {monacoLoadState === 'loading'
+                      ? 'Editor liviano activo mientras Monaco termina de prepararse.'
+                      : 'Editor liviano activo. Monaco se carga al interactuar o en segundo plano.'}
+                  </span>
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => requestMonacoLoad()}
+                    disabled={monacoLoadState === 'loading'}
+                  >
+                    {monacoLoadState === 'loading' ? 'Cargando Monaco…' : 'Cargar Monaco'}
+                  </button>
+                </>
+              )}
             </div>
 
             <textarea
               ref={fallbackTextareaRef}
               value={sqlText}
               onChange={(event) => onSqlChange(event.target.value)}
+              onFocus={() => {
+                setTextareaFocused(true);
+                if (monacoLoadState === 'idle') requestMonacoLoad();
+              }}
+              onPointerDown={() => {
+                if (monacoLoadState === 'idle') requestMonacoLoad();
+              }}
               onSelect={() => {
                 const count = getTextareaSelectionCharacterCount(fallbackTextareaRef.current);
                 setSelectionCharacterCount(count > 0 ? count : null);
               }}
-              onBlur={() => setSelectionCharacterCount(null)}
+              onBlur={() => {
+                setTextareaFocused(false);
+                setSelectionCharacterCount(null);
+              }}
               spellCheck={false}
               style={{
                 width: '100%',

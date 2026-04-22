@@ -30,6 +30,7 @@ interface DiagramWorkspaceProps {
   onEdgeClick: (_: unknown, edge: Edge) => void;
   onEdgesChange: OnEdgesChange<Edge>;
   onFocusDiagramSearchResult: (result: DiagramSearchResult) => void;
+  onNodeDragStart: (node: FlowNode) => void;
   onNodePositionCommit: (node: FlowNode) => void;
   onNodesChange: OnNodesChange<FlowNode>;
   onPaneClick: () => void;
@@ -54,6 +55,7 @@ export default function DiagramWorkspace({
   onEdgeClick,
   onEdgesChange,
   onFocusDiagramSearchResult,
+  onNodeDragStart,
   onNodePositionCommit,
   onNodesChange,
   onPaneClick,
@@ -125,6 +127,7 @@ export default function DiagramWorkspace({
           onConnect={onConnect}
           onEdgeClick={onEdgeClick}
           onEdgesChange={onEdgesChange}
+          onNodeDragStart={onNodeDragStart}
           onNodePositionCommit={onNodePositionCommit}
           onNodesChange={onNodesChange}
           onPaneClick={onPaneClick}

@@ -112,7 +112,7 @@ export function useAutoLayout({
       if (workerRef.current === worker) workerRef.current = null;
       worker.terminate();
     };
-  }, [finishLayout, isModelReady, layoutRevision, parseRunId, relationGrouping, relationships, startLayout, tablePositions, tables]);
+  }, [finishLayout, isModelReady, layoutRevision, parseRunId, relationGrouping, relationships, startLayout, tables]);
 
   return {
     elkLayout,

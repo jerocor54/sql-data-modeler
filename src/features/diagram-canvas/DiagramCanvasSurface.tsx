@@ -38,6 +38,7 @@ interface DiagramCanvasSurfaceProps {
   onConnect: (connection: Connection) => void;
   onEdgeClick: (_: unknown, edge: Edge) => void;
   onEdgesChange: OnEdgesChange<Edge>;
+  onNodeDragStart: (node: FlowNode) => void;
   onNodePositionCommit: (node: FlowNode) => void;
   onNodesChange: OnNodesChange<FlowNode>;
   onPaneClick: () => void;
@@ -101,6 +102,7 @@ function DiagramCanvasSurfaceComponent({
   onConnect,
   onEdgeClick,
   onEdgesChange,
+  onNodeDragStart,
   onNodePositionCommit,
   onNodesChange,
   onPaneClick,
@@ -185,6 +187,7 @@ function DiagramCanvasSurfaceComponent({
           defaultViewport={diagramViewport ?? undefined}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onNodeDragStart={(_, node) => onNodeDragStart(node)}
           onNodeDragStop={(_, node) => onNodePositionCommit(node)}
           onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
@@ -221,6 +224,7 @@ export const DiagramCanvasSurface = memo(DiagramCanvasSurfaceComponent, (prev, n
     prev.onConnect === next.onConnect &&
     prev.onEdgeClick === next.onEdgeClick &&
     prev.onEdgesChange === next.onEdgesChange &&
+    prev.onNodeDragStart === next.onNodeDragStart &&
     prev.onNodePositionCommit === next.onNodePositionCommit &&
     prev.onNodesChange === next.onNodesChange &&
     prev.onPaneClick === next.onPaneClick &&

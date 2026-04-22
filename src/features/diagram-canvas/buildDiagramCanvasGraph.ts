@@ -668,32 +668,58 @@ export interface BuildDiagramCanvasGraphInput extends DiagramNodeHandlers {
   theme: ThemeMode;
 }
 
-export function buildDiagramCanvasGraph({
-  effectiveLineStyle,
-  elkLayout,
+export interface DiagramCanvasGraph {
+  edges: Edge[];
+  nodes: FlowNode[];
+}
+
+interface BuildDiagramCanvasNodesInput extends DiagramNodeHandlers {
+  globalTypeMode: TypeDisplayMode;
+  parsed: ParseResult;
+  resolvedPositions: Record<string, Position | DiagramViewport>;
+  tableConfig: Record<string, TableVisualConfig>;
+  tableDesignTheme: TableDesignTheme;
+  theme: ThemeMode;
+}
+
+interface BuildDiagramCanvasEdgesInput {
+  effectiveLineStyle: RelationLineStyle;
+  elkLayout: ElkLayoutResult;
+  globalTypeMode: TypeDisplayMode;
+  hasManualLayout: boolean;
+  linePattern: RelationLinePattern;
+  parsed: ParseResult;
+  relationGrouping: RelationGroupingMode;
+  resolvedPositions: Record<string, Position | DiagramViewport>;
+  routingMode?: 'full' | 'simplified';
+  renderRelationshipIds?: ReadonlySet<string>;
+  seedEdges?: Edge[];
+  tableMap: Map<string, TableModel>;
+}
+
+export function resolveDiagramTablePositions(
+  parsed: ParseResult,
+  elkLayout: ElkLayoutResult,
+  tablePositions: Record<string, Position | DiagramViewport>,
+): Record<string, Position | DiagramViewport> {
+  return Object.fromEntries(
+    parsed.tables.map((table) => [table.key, tablePositions[table.key] ?? elkLayout.positions[table.key] ?? { x: 100, y: 100 }]),
+  );
+}
+
+export function buildDiagramCanvasNodes({
   globalTypeMode,
-  hasManualLayout,
-  linePattern,
   onColumnSelect,
   onGoToSql,
   onPreview,
   onTableStyleChange,
   parsed,
-  relationGrouping,
+  resolvedPositions,
   tableConfig,
-  tableMap,
   tableDesignTheme,
-  tablePositions,
   theme,
-}: BuildDiagramCanvasGraphInput): { edges: Edge[]; nodes: FlowNode[] } {
-  const resolvedPositions = Object.fromEntries(
-    parsed.tables.map((table) => [
-      table.key,
-      tablePositions[table.key] ?? elkLayout.positions[table.key] ?? { x: 100, y: 100 },
-    ]),
-  );
-
-  const nodes: FlowNode[] = parsed.tables.map((table) => ({
+}: BuildDiagramCanvasNodesInput): FlowNode[] {
+  return parsed.tables.map((table) => ({
     id: table.key,
     position: resolvedPositions[table.key] ?? { x: 100, y: 100 },
     type: 'tableNode',
@@ -710,9 +736,33 @@ export function buildDiagramCanvasGraph({
     } satisfies TableNodeData,
     draggable: true,
   }));
+}
 
+function getSeedCommittedSegments(seedEdges: Edge[] | undefined): ReturnType<typeof getOrthogonalSegments> {
+  if (!seedEdges || seedEdges.length === 0) return [];
+
+  return seedEdges.flatMap((edge) => {
+    const points = ((edge.data ?? {}) as RoutedEdgeData).points;
+    return points && points.length >= 2 ? getOrthogonalSegments(points) : [];
+  });
+}
+
+export function buildDiagramCanvasEdges({
+  effectiveLineStyle,
+  elkLayout,
+  hasManualLayout,
+  linePattern,
+  parsed,
+  relationGrouping,
+  resolvedPositions,
+  routingMode = 'full',
+  renderRelationshipIds,
+  seedEdges,
+  tableMap,
+}: BuildDiagramCanvasEdgesInput): Edge[] {
   const edges: Edge[] = [];
-  const committedSegments: ReturnType<typeof getOrthogonalSegments> = [];
+  const isSimplifiedRouting = routingMode === 'simplified';
+  const committedSegments = isSimplifiedRouting ? [] : getSeedCommittedSegments(seedEdges);
   const tableFrames = new Map(
     parsed.tables.map((table) => [
       table.key,
@@ -772,13 +822,17 @@ export function buildDiagramCanvasGraph({
 
     return leftDistance - rightDistance || left.id.localeCompare(right.id);
   });
-  const baseSourcePlans = buildEndpointPlans(relationshipsForRouting, elkLayout.edgePaths, tableFrames, 'source', 'separate');
-  const baseTargetPlans = buildEndpointPlans(relationshipsForRouting, elkLayout.edgePaths, tableFrames, 'target', 'separate');
+  const relationshipsToRender = renderRelationshipIds
+    ? relationshipsForRouting.filter((relationship) => renderRelationshipIds.has(relationship.id))
+    : relationshipsForRouting;
+  const endpointRelationships = isSimplifiedRouting ? relationshipsToRender : relationshipsForRouting;
+  const baseSourcePlans = buildEndpointPlans(endpointRelationships, elkLayout.edgePaths, tableFrames, 'source', 'separate');
+  const baseTargetPlans = buildEndpointPlans(endpointRelationships, elkLayout.edgePaths, tableFrames, 'target', 'separate');
   const targetBundles =
-    relationGrouping === 'bundled'
-      ? buildEndpointPlans(relationshipsForRouting, elkLayout.edgePaths, tableFrames, 'target', 'bundled')
+    relationGrouping === 'bundled' && !isSimplifiedRouting
+      ? buildEndpointPlans(endpointRelationships, elkLayout.edgePaths, tableFrames, 'target', 'bundled')
       : new Map<string, EndpointPlan>();
-  const routingPins = relationshipsForRouting.flatMap((rel) => {
+  const routingPins = endpointRelationships.flatMap((rel) => {
     const sourcePlan = baseSourcePlans.get(rel.id);
     const targetPlan = targetBundles.get(rel.id) ?? baseTargetPlans.get(rel.id);
 
@@ -787,20 +841,22 @@ export function buildDiagramCanvasGraph({
       ...(targetPlan ? [targetPlan.lead, targetPlan.anchor] : []),
     ];
   });
-  const orthogonalRouter = createOrthogonalRouter(expandedObstacles, routingPins, {
-    outerPadding: ROUTER_OUTER_PADDING,
-    turnPenalty: ROUTER_TURN_PENALTY,
-    segmentPenalty: ROUTER_SEGMENT_PENALTY,
-    reverseDirectionPenalty: ROUTER_REVERSE_DIRECTION_PENALTY,
-    sharedSegmentPenalty: ROUTER_SHARED_SEGMENT_PENALTY,
-    nearbySegmentPenalty: ROUTER_NEARBY_SEGMENT_PENALTY,
-    nearbySegmentDistance: ROUTER_NEARBY_SEGMENT_DISTANCE,
-    outerLanePenalty: ROUTER_OUTER_LANE_PENALTY,
-    centerLanePenalty: ROUTER_CENTER_LANE_PENALTY,
-    minCorridorSpan: ROUTER_MIN_CORRIDOR_SPAN,
-  });
+  const orthogonalRouter = isSimplifiedRouting
+    ? null
+    : createOrthogonalRouter(expandedObstacles, routingPins, {
+        outerPadding: ROUTER_OUTER_PADDING,
+        turnPenalty: ROUTER_TURN_PENALTY,
+        segmentPenalty: ROUTER_SEGMENT_PENALTY,
+        reverseDirectionPenalty: ROUTER_REVERSE_DIRECTION_PENALTY,
+        sharedSegmentPenalty: ROUTER_SHARED_SEGMENT_PENALTY,
+        nearbySegmentPenalty: ROUTER_NEARBY_SEGMENT_PENALTY,
+        nearbySegmentDistance: ROUTER_NEARBY_SEGMENT_DISTANCE,
+        outerLanePenalty: ROUTER_OUTER_LANE_PENALTY,
+        centerLanePenalty: ROUTER_CENTER_LANE_PENALTY,
+        minCorridorSpan: ROUTER_MIN_CORRIDOR_SPAN,
+      });
 
-  for (const rel of relationshipsForRouting) {
+  for (const rel of relationshipsToRender) {
     const pathMeta = elkLayout.edgePaths[rel.id];
     const sourcePlan = baseSourcePlans.get(rel.id);
     const baseTargetPlan = baseTargetPlans.get(rel.id);
@@ -821,6 +877,13 @@ export function buildDiagramCanvasGraph({
       candidate: { x: number; y: number }[] | null | undefined,
       targetPlanOverride?: EndpointPlan,
     ): boolean => {
+      if (isSimplifiedRouting) {
+        if (!candidate || candidate.length < 2) return false;
+        renderedPoints = simplifyOrthogonalPath(candidate);
+        usesStraightRoute = false;
+        return true;
+      }
+
       const accepted = normalizeAcceptedPath(
         candidate,
         expandedObstacles,
@@ -841,19 +904,25 @@ export function buildDiagramCanvasGraph({
       return true;
     };
 
-    const straightObstacles = parsed.tables
-      .filter((table) => table.key !== rel.sourceTable && table.key !== rel.targetTable)
-      .map((table) => expandedObstacleMap.get(table.key))
-      .filter((obstacle): obstacle is { left: number; right: number; top: number; bottom: number } => Boolean(obstacle));
+    const straightObstacles = isSimplifiedRouting
+      ? []
+      : parsed.tables
+          .filter((table) => table.key !== rel.sourceTable && table.key !== rel.targetTable)
+          .map((table) => expandedObstacleMap.get(table.key))
+          .filter((obstacle): obstacle is { left: number; right: number; top: number; bottom: number } => Boolean(obstacle));
 
     if (sourcePlan && preferredTargetPlan) {
       acceptStraightPath(buildStraightPath(sourcePlan, preferredTargetPlan, straightObstacles));
     }
 
-    if (!usesStraightRoute && effectiveLineStyle === 'orthogonal' && sourcePlan && baseTargetPlan) {
+    if (renderedPoints.length === 0 && isSimplifiedRouting && sourcePlan && preferredTargetPlan) {
+      acceptCandidatePath(buildDirectOrthogonalPath(sourcePlan, preferredTargetPlan), preferredTargetPlan);
+    }
+
+    if (!usesStraightRoute && !isSimplifiedRouting && effectiveLineStyle === 'orthogonal' && sourcePlan && baseTargetPlan) {
       const candidatePath = bundledTargetPlan
         ? normalizeAcceptedPath(
-            buildRoutedOrthogonalPath(sourcePlan, bundledTargetPlan, orthogonalRouter.route, committedSegments),
+            buildRoutedOrthogonalPath(sourcePlan, bundledTargetPlan, orthogonalRouter?.route ?? (() => null), committedSegments),
             expandedObstacles,
             tableObstacles,
             sourcePlan,
@@ -861,7 +930,7 @@ export function buildDiagramCanvasGraph({
           )
         : null;
       const fallbackPath = normalizeAcceptedPath(
-        buildRoutedOrthogonalPath(sourcePlan, baseTargetPlan, orthogonalRouter.route, committedSegments),
+        buildRoutedOrthogonalPath(sourcePlan, baseTargetPlan, orthogonalRouter?.route ?? (() => null), committedSegments),
         expandedObstacles,
         tableObstacles,
         sourcePlan,
@@ -935,7 +1004,7 @@ export function buildDiagramCanvasGraph({
             curveStrength: 1.2,
           });
 
-    if (effectiveLineStyle === 'orthogonal' && !usesStraightRoute) {
+    if (effectiveLineStyle === 'orthogonal' && !usesStraightRoute && !isSimplifiedRouting) {
       committedSegments.push(...getOrthogonalSegments(renderedPoints));
     }
 
@@ -949,10 +1018,58 @@ export function buildDiagramCanvasGraph({
         labelX: labelPoint.x,
         labelY: labelPoint.y,
         showLabel: true,
+        deferredRouting: isSimplifiedRouting,
+        draggingPreview: false,
         cardinality,
       } satisfies RoutedEdgeData,
     });
   }
+
+  return edges;
+}
+
+export function buildDiagramCanvasGraph({
+  effectiveLineStyle,
+  elkLayout,
+  globalTypeMode,
+  hasManualLayout,
+  linePattern,
+  onColumnSelect,
+  onGoToSql,
+  onPreview,
+  onTableStyleChange,
+  parsed,
+  relationGrouping,
+  tableConfig,
+  tableMap,
+  tableDesignTheme,
+  tablePositions,
+  theme,
+}: BuildDiagramCanvasGraphInput): DiagramCanvasGraph {
+  const resolvedPositions = resolveDiagramTablePositions(parsed, elkLayout, tablePositions);
+  const nodes = buildDiagramCanvasNodes({
+    globalTypeMode,
+    onColumnSelect,
+    onGoToSql,
+    onPreview,
+    onTableStyleChange,
+    parsed,
+    resolvedPositions,
+    tableConfig,
+    tableDesignTheme,
+    theme,
+  });
+  const edges = buildDiagramCanvasEdges({
+    effectiveLineStyle,
+    elkLayout,
+    globalTypeMode,
+    hasManualLayout,
+    linePattern,
+    parsed,
+    relationGrouping,
+    resolvedPositions,
+    tableMap,
+  });
 
   return {
     edges,

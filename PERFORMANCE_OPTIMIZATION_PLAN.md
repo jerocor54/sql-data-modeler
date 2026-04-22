@@ -65,6 +65,53 @@ Trabajar por **hotspots reales** y en este orden:
 
 ---
 
+## Pilares no negociables del proyecto
+
+Todo cambio futuro debe sostener simultáneamente estos 4 pilares:
+
+1. **Robusto**
+   - no depender de estados frágiles
+   - no romper la app ante datasets grandes o fallos parciales
+2. **Escalable**
+   - no asumir que el modelo será chico
+   - crecer sin multiplicar costo linealmente en cada interacción
+3. **Rápido**
+   - priorizar respuesta visible inmediata
+   - mover trabajo caro fuera del camino crítico cuando sea posible
+4. **Mantenible**
+   - evitar hotfixes que entierren más acoplamiento
+   - dejar seams, contratos y límites claros
+
+Si una mejora acelera algo pero destruye robustez, escalabilidad o mantenibilidad, NO es una mejora válida.
+
+---
+
+## Hardcodes temporales a remover
+
+Estos valores existen hoy como **hotfixes tácticos**. No deben considerarse diseño final.
+
+- `src/features/diagram-canvas/useDiagramCanvasModel.ts`
+  - `DEFERRED_EDGE_REFINEMENT_DELAY_MS = 96`
+  - `MAX_DEFERRED_FULL_REFINEMENT_EDGES = 16`
+  - `movedTableKeys.length <= 2` para patch incremental
+- `src/components/SqlEditorPanel.tsx`
+  - timeouts / idle warmup de Monaco (`1800`, `3000`, `4500` ms)
+
+### Regla
+
+Ninguno de estos hardcodes debe quedar como solución final.
+
+En fases posteriores deben reemplazarse por alguno de estos caminos:
+
+- heurísticas derivadas de métricas reales
+- thresholds configurables/documentados
+- políticas adaptativas por tamaño del modelo o capacidad del dispositivo
+- estrategias event-driven / idle / manual explicitadas en UX
+
+Mientras existan, deben tratarse como deuda técnica visible y revisable.
+
+---
+
 ## Decisiones ya tomadas
 
 - [x] Mantener el producto como **frontend estático / 100% client-side**.

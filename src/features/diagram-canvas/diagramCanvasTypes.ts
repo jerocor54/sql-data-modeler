@@ -25,6 +25,8 @@ export interface RoutedEdgeData {
   labelX?: number;
   labelY?: number;
   showLabel?: boolean;
+  deferredRouting?: boolean;
+  draggingPreview?: boolean;
   cardinality?: {
     source: { min: 0 | 1; max: 'one' | 'many' };
     target: { min: 0 | 1; max: 'one' | 'many' };

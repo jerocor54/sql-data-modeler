@@ -216,6 +216,7 @@ function RoutedEdge(props: EdgeProps) {
   const edgeStyle = (props.style ?? {}) as CSSProperties;
   const baseStrokeWidth = typeof edgeStyle.strokeWidth === 'number' ? edgeStyle.strokeWidth : 2;
   const strokeWidth = isHighlighted ? Math.max(3, baseStrokeWidth + 1) : baseStrokeWidth;
+  const isDraggingPreview = data.draggingPreview === true;
   const cardinality =
     data.cardinality ?? {
       source: { min: 0, max: 'many' },
@@ -271,6 +272,22 @@ function RoutedEdge(props: EdgeProps) {
     strokeDasharray: undefined,
     strokeDashoffset: undefined,
   };
+
+  if (isDraggingPreview) {
+    return (
+      <BaseEdge
+        id={props.id}
+        path={simplifiedEdgePath}
+        style={{
+          ...simplifiedStyle,
+          strokeOpacity: isHighlighted ? 1 : 0.72,
+          strokeDasharray: '8 6',
+          strokeDashoffset: 0,
+        }}
+        interactionWidth={props.interactionWidth}
+      />
+    );
+  }
 
   if (isFarLod) {
     return <BaseEdge id={props.id} path={simplifiedEdgePath} style={simplifiedStyle} interactionWidth={props.interactionWidth} />;

@@ -369,7 +369,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     tablePositions,
     tables: parsed.tables,
   });
-  const { nodes, edges, onNodesChange, onEdgesChange, setEdges } = useDiagramCanvasModel({
+  const { nodes, edges, handleNodeDragStart, onNodesChange, onEdgesChange, setEdges } = useDiagramCanvasModel({
     effectiveLineStyle,
     elkLayout,
     globalTypeMode,
@@ -553,6 +553,9 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   const clearDiagramSearchFocus = useCallback(() => {
     setSearchFocusedTables(new Set());
     setSearchFocusedColumns(new Set());
+  }, []);
+  const requestGlobalRelayout = useCallback(() => {
+    setLayoutRevision((current) => current + 1);
   }, []);
   useEffect(() => {
     if (diagramSearch.trim()) return;
@@ -774,6 +777,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       onEdgeClick={onEdgeClick}
       onEdgesChange={onEdgesChange}
       onFocusDiagramSearchResult={focusDiagramSearchResult}
+      onNodeDragStart={(node) => handleNodeDragStart(node.id)}
       onNodePositionCommit={(node) => setTablePosition(node.id, node.position)}
       onNodesChange={onNodesChange}
       onPaneClick={onPaneClick}
@@ -1087,7 +1091,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
                     value={relationGrouping}
                     onChange={(event) => {
                       setRelationGrouping(event.target.value as RelationGroupingMode);
-                      setLayoutRevision((prev) => prev + 1);
+                      requestGlobalRelayout();
                     }}
                   >
                     <option value="separate">Separadas por relación</option>
@@ -1101,7 +1105,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
 
                 <button className="btn menu-item" onClick={() => {
                   resetTablePositions();
-                  setLayoutRevision((prev) => prev + 1);
+                  requestGlobalRelayout();
                   setSelected(null);
                   setSelectedRelationshipId(null);
                   setOpenDiagramMenu(false);
