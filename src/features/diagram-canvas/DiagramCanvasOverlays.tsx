@@ -228,6 +228,11 @@ export function DiagramCanvasOverlays({
 
             {diagramSearch.trim() && (
               <div className="diagram-search-results">
+                <div style={{ padding: '0.5rem 0.75rem', fontSize: 11, color: 'var(--text-muted)' }}>
+                  {diagramSearchResults.length > 0
+                    ? `${diagramSearchResults.length} coincidencia${diagramSearchResults.length === 1 ? '' : 's'} · Enter enfoca el resultado activo`
+                    : 'Sin coincidencias para esta búsqueda'}
+                </div>
                 {diagramSearchResults.length > 0 ? (
                   diagramSearchResults.map((result) => (
                     <button

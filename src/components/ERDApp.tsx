@@ -30,6 +30,12 @@ import type {
 import { useAutoLayout } from '../features/auto-layout/useAutoLayout';
 import { useSyncDiagramCanvasTransientState } from '../features/diagram-canvas/diagramCanvasTransientState';
 import { useDiagramCanvasModel } from '../features/diagram-canvas/useDiagramCanvasModel';
+import {
+  useDiagramPresentation,
+  type DiagramFocusDepth,
+  type DiagramPresentationMode,
+  type DiagramPresentationStrategy,
+} from '../features/diagram-presentation/useDiagramPresentation';
 import { useDiagramModel, type DiagramSearchResult } from '../features/parse-sql/useDiagramModel';
 import BenchmarkPanel from '../features/performance/BenchmarkPanel';
 import {
@@ -74,6 +80,36 @@ function ensureSvgBackground(dataUrl: string, fillColor: string): string {
 
 function normalize(value: string): string {
   return value.toLowerCase();
+}
+
+function getPresentationStrategyLabel(strategy: DiagramPresentationStrategy): string {
+  if (strategy === 'normal') return 'Normal';
+  if (strategy === 'large') return 'Large';
+  return 'Extreme';
+}
+
+function getPresentationModeLabel(mode: DiagramPresentationMode): string {
+  if (mode === 'full') return 'Full';
+  if (mode === 'overview') return 'Overview';
+  return 'Focus';
+}
+
+function getFocusDepthBadge(depth: DiagramFocusDepth | null): string {
+  if (depth === null) return '—';
+  return `Nivel ${depth}`;
+}
+
+function isKeyboardTypingContext(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  return Boolean(element?.closest('input, textarea, select, [contenteditable="true"], .monaco-editor, .view-lines'));
+}
+
+function mergeSets<T>(...sets: Array<Set<T>>): Set<T> {
+  const merged = new Set<T>();
+  for (const current of sets) {
+    for (const value of current) merged.add(value);
+  }
+  return merged;
 }
 
 function getHighlightedEdges(
@@ -195,6 +231,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     sqlText,
     tablePositions,
   });
+  const tableNameById = useMemo(() => new Map(parsed.tables.map((table) => [table.key, table.name] as const)), [parsed.tables]);
   const effectiveLineStyle = 'orthogonal';
 
   const [selected, setSelected] = useState<{ table: string; column: string; kind: 'pk' | 'fk' } | null>(null);
@@ -207,12 +244,15 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   const [layoutRevision, setLayoutRevision] = useState(0);
   const [focusedAmbiguousTables, setFocusedAmbiguousTables] = useState<Set<string>>(new Set());
   const [focusedAmbiguousColumns, setFocusedAmbiguousColumns] = useState<Set<string>>(new Set());
+  const [searchFocusedTables, setSearchFocusedTables] = useState<Set<string>>(new Set());
+  const [searchFocusedColumns, setSearchFocusedColumns] = useState<Set<string>>(new Set());
   const exportRef = useRef<HTMLDivElement>(null);
   const panelsRef = useRef<HTMLElement>(null);
   const diagramMenuRef = useRef<HTMLDivElement>(null);
   const diagramMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const reactFlowRef = useRef<ReactFlowInstance<FlowNode, Edge> | null>(null);
   const focusResetTimerRef = useRef<number | null>(null);
+  const handledFocusViewportRequestRef = useRef(0);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -264,8 +304,20 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     if (selectedRelationshipId) return getActiveColumnsForRelationship(selectedRelationshipId, parsed.relationships);
     return getActiveColumns(selected, parsed.relationships);
   }, [selected, selectedRelationshipId, parsed.relationships]);
+  const searchResultTableIds = useMemo(
+    () => new Set(diagramSearchResults.map((result) => result.tableKey)),
+    [diagramSearchResults],
+  );
+  const focusSignalTableIds = useMemo(
+    () => mergeSets(focusedAmbiguousTables, searchFocusedTables),
+    [focusedAmbiguousTables, searchFocusedTables],
+  );
+  const focusSignalColumnIds = useMemo(
+    () => mergeSets(focusedAmbiguousColumns, searchFocusedColumns),
+    [focusedAmbiguousColumns, searchFocusedColumns],
+  );
   const viewportPinnedNodeIds = useMemo(() => {
-    const pinned = new Set<string>(focusedAmbiguousTables);
+    const pinned = new Set<string>(focusSignalTableIds);
 
     if (selected) pinned.add(selected.table);
     if (previewTable) pinned.add(previewTable);
@@ -279,13 +331,13 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     }
 
     return pinned;
-  }, [focusedAmbiguousTables, parsed.relationships, previewTable, selected, selectedRelationshipId]);
+  }, [focusSignalTableIds, parsed.relationships, previewTable, selected, selectedRelationshipId]);
   useSyncDiagramCanvasTransientState({
     activeColumns,
     ambiguousColumns,
     ambiguousTableKeys,
-    focusedAmbiguousColumns,
-    focusedAmbiguousTables,
+    focusedAmbiguousColumns: focusSignalColumnIds,
+    focusedAmbiguousTables: focusSignalTableIds,
     highlightedEdgeIds,
   });
   const handleDiagramColumnSelect = useCallback((tableKey: string, columnName: string, kind: 'pk' | 'fk') => {
@@ -335,10 +387,122 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     tablePositions,
     theme,
   });
+  const {
+      activeFocusContext,
+      activeFocusContextId,
+      activeFocusContextIndex,
+      activeFocusContextViewportNodeIds,
+      automaticReason: diagramPresentationAutomaticReason,
+      canDecreaseFocusDepth,
+      canIncreaseFocusDepth,
+      currentAutomaticStrategy,
+      effectiveMode: diagramPresentationMode,
+      effectiveReason: diagramPresentationEffectiveReason,
+      effectiveFocusDepth,
+      focusContextCount,
+      focusViewportRequestToken,
+      focusSignalCount: diagramPresentationFocusSignalCount,
+      focusVisibilityLabel,
+      focusVisibleEdgeCount,
+      focusVisibleNodeCount,
+      goToNextFocusContext,
+      goToPreviousFocusContext,
+      expandFocusDepth,
+      isAutomaticMode: isDiagramPresentationAutomatic,
+      isAutomaticFocusDepth,
+      requestCenterActiveFocusContext,
+      requestedMode: requestedDiagramPresentationMode,
+      reduceFocusDepth,
+      resetToAutomaticMode: resetDiagramPresentationMode,
+      searchMatchCount: diagramPresentationSearchMatchCount,
+      setManualMode: setDiagramPresentationMode,
+     visibleEdgeIds,
+     visibleNodeIds,
+  } = useDiagramPresentation({
+    ambiguousFocusTableIds: focusedAmbiguousTables,
+    edges,
+    highlightedEdgeIds,
+    nodes,
+    previewTableId: previewTable,
+    relationships: parsed.relationships,
+    searchQuery: diagramSearch,
+    searchFocusedTableIds: searchFocusedTables,
+    searchResultTableIds,
+    selectedRelationshipId,
+    selectedTableId: selected?.table ?? null,
+    tableNameById,
+  });
+  const presentedNodes = useMemo(
+    () => nodes.filter((node) => visibleNodeIds.has(node.id)),
+    [nodes, visibleNodeIds],
+  );
+  const presentedEdges = useMemo(
+    () => edges.filter((edge) => visibleEdgeIds.has(edge.id)),
+    [edges, visibleEdgeIds],
+  );
 
   useEffect(() => () => {
     if (focusResetTimerRef.current) window.clearTimeout(focusResetTimerRef.current);
   }, []);
+
+  const centerFocusContextInViewport = useCallback(() => {
+    if (!activeFocusContextId) return;
+
+    const contextNodes = nodes.filter((node) => activeFocusContextViewportNodeIds.has(node.id));
+    if (contextNodes.length === 0) return;
+
+    if (viewMode === 'tabs') setActiveViewTab('diagram');
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        void reactFlowRef.current?.fitView({
+          nodes: contextNodes,
+          duration: 420,
+          padding: contextNodes.length === 1 ? 0.72 : 0.4,
+          minZoom: 0.12,
+          maxZoom: 1.25,
+        });
+      });
+    });
+  }, [activeFocusContextId, activeFocusContextViewportNodeIds, nodes, setActiveViewTab, viewMode]);
+
+  useEffect(() => {
+    if (!focusViewportRequestToken) return;
+    if (handledFocusViewportRequestRef.current === focusViewportRequestToken) return;
+
+    handledFocusViewportRequestRef.current = focusViewportRequestToken;
+    centerFocusContextInViewport();
+  }, [centerFocusContextInViewport, focusViewportRequestToken]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isKeyboardTypingContext(event.target)) return;
+
+      if (event.code === 'BracketLeft') {
+        if (focusContextCount <= 1) return;
+        event.preventDefault();
+        goToPreviousFocusContext();
+        return;
+      }
+
+      if (event.code === 'BracketRight') {
+        if (focusContextCount <= 1) return;
+        event.preventDefault();
+        goToNextFocusContext();
+        return;
+      }
+
+      if (event.code === 'KeyC') {
+        if (!activeFocusContextId) return;
+        event.preventDefault();
+        requestCenterActiveFocusContext();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeFocusContextId, focusContextCount, goToNextFocusContext, goToPreviousFocusContext, requestCenterActiveFocusContext]);
 
   const focusTablesAndColumns = useCallback((tableKeys: Set<string>, columnKeys: Set<string>) => {
     setFocusedAmbiguousTables(tableKeys);
@@ -377,11 +541,23 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   const focusDiagramSearchResult = useCallback((result: DiagramSearchResult) => {
     setSelected(null);
     setSelectedRelationshipId(null);
+    setSearchFocusedTables(new Set<string>([result.tableKey]));
+    setSearchFocusedColumns(
+      result.columnName ? new Set<string>([`${result.tableKey}.${normalize(result.columnName)}`]) : new Set<string>(),
+    );
     focusTablesAndColumns(
       new Set<string>([result.tableKey]),
       result.columnName ? new Set<string>([`${result.tableKey}.${normalize(result.columnName)}`]) : new Set<string>(),
     );
   }, [focusTablesAndColumns]);
+  const clearDiagramSearchFocus = useCallback(() => {
+    setSearchFocusedTables(new Set());
+    setSearchFocusedColumns(new Set());
+  }, []);
+  useEffect(() => {
+    if (diagramSearch.trim()) return;
+    clearDiagramSearchFocus();
+  }, [clearDiagramSearchFocus, diagramSearch]);
   useEffect(() => {
     if (!isDiagramModelReady) return;
     if (layoutPending) return;
@@ -421,12 +597,12 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
         const viewportEl = exportRef.current.querySelector('.react-flow__viewport') as HTMLElement | null;
         if (!viewportEl) return;
 
-        const hasNodes = nodes.length > 0;
+        const hasNodes = presentedNodes.length > 0;
         const fallbackWidth = Math.max(EXPORT_MIN_WIDTH, exportRef.current.clientWidth);
         const fallbackHeight = Math.max(EXPORT_MIN_HEIGHT, exportRef.current.clientHeight);
 
         const bounds = hasNodes
-          ? getNodesBounds(nodes)
+          ? getNodesBounds(presentedNodes)
           : {
               x: 0,
               y: 0,
@@ -483,7 +659,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
         setExportingFormat(null);
       }
     },
-    [exportScale, nodes],
+    [exportScale, presentedNodes],
   );
 
   const handleExportDiagram = useCallback(
@@ -585,14 +761,13 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       diagramSearchResults={diagramSearchResults}
       diagramViewport={diagramViewport}
       disableViewportCulling={Boolean(exportingFormat)}
-      edges={edges}
+      edges={presentedEdges}
       exportRef={exportRef}
       hasSavedDiagramViewport={hasSavedDiagramViewport}
       highlightedEdgeIds={highlightedEdgeIds}
-      nodes={nodes}
+      nodes={presentedNodes}
       onClearSearchHighlights={() => {
-        setFocusedAmbiguousTables(new Set());
-        setFocusedAmbiguousColumns(new Set());
+        clearDiagramSearchFocus();
       }}
       onConnect={onConnect}
       onDiagramSearchChange={setDiagramSearch}
@@ -607,6 +782,19 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       viewportPinnedNodeIds={viewportPinnedNodeIds}
     />
   );
+  const presentedNodeCountLabel = `${presentedNodes.length}/${nodes.length} tablas`;
+  const presentedEdgeCountLabel = `${presentedEdges.length}/${edges.length} relaciones`;
+  const isSearchContextActive = diagramSearch.trim().length > 0;
+  const presentationExplanation = isDiagramPresentationAutomatic
+    ? diagramPresentationAutomaticReason
+    : diagramPresentationEffectiveReason;
+  const isFocusModeActive = diagramPresentationMode === 'focus';
+  const focusDepthStatus = isFocusModeActive
+    ? `${getFocusDepthBadge(effectiveFocusDepth)} · ${focusVisibilityLabel}${isAutomaticFocusDepth ? ' · auto' : ' · manual'}`
+    : null;
+  const focusContextStatus = focusContextCount > 0
+    ? `${activeFocusContextIndex + 1}/${focusContextCount}${activeFocusContext ? ` · ${activeFocusContext.label}` : ''}`
+    : null;
 
   return (
     <main className="app-root" style={{ height: '100dvh', padding: 14, display: 'grid', gridTemplateRows: 'auto 1fr', gap: 10 }}>
@@ -619,6 +807,22 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
 
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
             {layoutPending && <span className="status-pill">Reordenando layout…</span>}
+            <span className="status-pill">
+              Estrategia activa: {getPresentationStrategyLabel(currentAutomaticStrategy)}
+            </span>
+            <span className="status-pill">
+              Modo visible: {getPresentationModeLabel(diagramPresentationMode)}
+              {isDiagramPresentationAutomatic ? ' · auto' : ' · manual'}
+            </span>
+            <span className="status-pill">
+              {presentedNodeCountLabel} · {presentedEdgeCountLabel}
+            </span>
+            {focusDepthStatus && <span className="status-pill">{focusDepthStatus}</span>}
+            {isSearchContextActive && (
+              <span className="status-pill">
+                Búsqueda activa · {diagramPresentationSearchMatchCount} coincidencia{diagramPresentationSearchMatchCount === 1 ? '' : 's'}
+              </span>
+            )}
             {layoutMode === 'fallback' && layoutWarning && (
               <span
                 className="status-pill"
@@ -632,9 +836,116 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
               </span>
             )}
           </div>
+
+          <div style={{ display: 'grid', gap: 4 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{presentationExplanation}</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+              {diagramPresentationFocusSignalCount > 0 && <span>Señales activas: {diagramPresentationFocusSignalCount}</span>}
+              {focusContextStatus && <span>Contexto activo: {focusContextStatus}</span>}
+              {activeFocusContext && <span>Origen del foco: {activeFocusContext.originLabel}</span>}
+              {isFocusModeActive && (
+                <>
+                  <span>
+                    Focus en {getFocusDepthBadge(effectiveFocusDepth)}: {focusVisibilityLabel?.toLowerCase()}.
+                  </span>
+                  <span>
+                    Visible ahora: {focusVisibleNodeCount ?? presentedNodes.length} tablas · {focusVisibleEdgeCount ?? presentedEdges.length} relaciones.
+                  </span>
+                </>
+              )}
+              {focusContextCount > 0 && <span>Shortcuts: [ anterior · ] siguiente · C centrar</span>}
+            </div>
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 10, flex: '0 1 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <label style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+              Modo diagrama
+              <select
+                className="select-modern"
+                value={requestedDiagramPresentationMode}
+                onChange={(event) => {
+                  const nextMode = event.target.value as DiagramPresentationMode | 'auto';
+                  if (nextMode === 'auto') {
+                    resetDiagramPresentationMode();
+                    return;
+                  }
+
+                  setDiagramPresentationMode(nextMode);
+                }}
+              >
+                <option value="auto">Automático</option>
+                <option value="full">Full</option>
+                <option value="overview">Overview</option>
+                <option value="focus">Focus</option>
+              </select>
+            </label>
+
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={focusContextCount <= 1}
+              onClick={goToPreviousFocusContext}
+              title="Ir al contexto anterior ([)"
+            >
+              Contexto anterior
+            </button>
+
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={focusContextCount <= 1}
+              onClick={goToNextFocusContext}
+              title="Ir al contexto siguiente (])"
+            >
+              Contexto siguiente
+            </button>
+
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={!activeFocusContextId}
+              onClick={requestCenterActiveFocusContext}
+              title="Recentrar el contexto actual (C)"
+            >
+              Centrar foco
+            </button>
+
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={diagramPresentationMode === 'overview'}
+              onClick={() => setDiagramPresentationMode('overview')}
+              title="Volver a overview"
+            >
+              Ver overview
+            </button>
+
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={!isFocusModeActive || !canDecreaseFocusDepth}
+              onClick={reduceFocusDepth}
+              title="Reducir vecindario visible del focus"
+            >
+              Menos contexto
+            </button>
+
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={!isFocusModeActive || !canIncreaseFocusDepth}
+              onClick={expandFocusDepth}
+              title="Expandir vecindario visible del focus"
+            >
+              Más contexto
+            </button>
+
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={isDiagramPresentationAutomatic}
+              onClick={resetDiagramPresentationMode}
+              title="Volver a la estrategia automática"
+            >
+              Reset auto
+            </button>
+          </div>
+
           {exportingFormat && (
             <span className="status-pill">
               <span className="loader-dot" /> Exportando {formatExportLabel(exportingFormat)}...
