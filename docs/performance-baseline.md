@@ -143,6 +143,22 @@ Son guardrails iniciales para detectar regresiones del baseline actual mientras 
 - Esta fase NO cubre todavía memoria, FPS, latencia de edición ni bloqueo fino del main thread.
 - Los datasets siguen siendo sintéticos: excelentes para comparar regresiones, no para representar todos los esquemas reales.
 
+## Slice de validación pendiente: Phase 5 next slice
+
+Para cerrar el warning archivado sobre payload metrics en superficies reales de benchmark, usar el paquete de evidencia preparado en:
+
+- `docs/performance-artifacts/phase-5-next-slice/README.md`
+- `docs/performance-artifacts/phase-5-next-slice/evidence-checklist.md`
+- `docs/performance-artifacts/phase-5-next-slice/benchmark-run-context.template.json`
+
+Reglas de esta validación:
+
+1. No hacer build; usar `npm run dev`.
+2. Validar sobre `http://localhost:4321/benchmark`.
+3. Capturar la UI del panel, JSON copiado y JSON exportado para la MISMA corrida.
+4. Registrar si preset `m` completa o cae en fallback/timeout, porque la referencia CLI sigue en ~26.6-26.8s frente a un budget in-app de `2500 ms`.
+5. Si falta algún campo de payload en UI o JSON, documentarlo como evidencia y NO abrir refactors fuera de este slice.
+
 ## Punto exacto de arranque para Fase 1
 
 Arrancá por estos hechos, no por intuición:

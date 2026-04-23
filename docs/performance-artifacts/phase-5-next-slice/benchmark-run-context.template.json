@@ -1,0 +1,40 @@
+{
+  "change": "phase-5-next-slice",
+  "capturedAt": "REPLACE_WITH_ISO_TIMESTAMP",
+  "baseUrl": "http://localhost:4321/benchmark",
+  "command": "npm run dev",
+  "preset": "s",
+  "datasetVersion": "REPLACE_WITH_DATASET_VERSION",
+  "browser": {
+    "name": "REPLACE_WITH_BROWSER_NAME",
+    "version": "REPLACE_WITH_BROWSER_VERSION"
+  },
+  "runtime": {
+    "node": "REPLACE_WITH_NODE_VERSION",
+    "platform": "REPLACE_WITH_PLATFORM"
+  },
+  "git": {
+    "head": "REPLACE_WITH_COMMIT_SHA",
+    "worktree": "REPLACE_WITH_GIT_STATUS_SUMMARY"
+  },
+  "layout": {
+    "engine": "elk-or-fallback",
+    "fallbackTriggered": false,
+    "timeoutBudgetMs": 2500,
+    "notes": "Record whether preset m completed or hit fallback/timeout."
+  },
+  "artifacts": {
+    "ui": "docs/performance-artifacts/phase-5-next-slice/benchmark-panel-ui.png",
+    "copyJson": "docs/performance-artifacts/phase-5-next-slice/benchmark-copy-results.json",
+    "exportJson": "docs/performance-artifacts/phase-5-next-slice/benchmark-export-results.json",
+    "notes": "docs/performance-artifacts/phase-5-next-slice/benchmark-notes.md"
+  },
+  "requiredMetrics": [
+    "payloadBytes",
+    "serializeMs",
+    "postMessageMs",
+    "roundTripMs",
+    "workerComputeMs",
+    "estimatedTransferMs"
+  ]
+}
