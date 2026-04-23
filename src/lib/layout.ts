@@ -1,23 +1,24 @@
 import dagre from 'dagre';
-import type { Position, Relationship, TableModel } from '../types/erd';
-import { getTableNodeHeight, TABLE_NODE_WIDTH } from './diagramGeometry';
+import type { Position } from '../types/erd';
+import type { LayoutGraphRelationship, LayoutGraphTable } from './layoutGraph';
+import { TABLE_NODE_WIDTH } from './diagramGeometry';
 
 const MIN_HORIZONTAL_GAP = 72;
 const MIN_VERTICAL_GAP = 56;
 
-function isPersistedLayoutCrowded(tables: TableModel[], persistedPositions: Record<string, Position>): boolean {
+function isPersistedLayoutCrowded(tables: LayoutGraphTable[], persistedPositions: Record<string, Position>): boolean {
   const positionedTables = tables.filter((table) => persistedPositions[table.key]);
   if (positionedTables.length < 2) return false;
 
   for (let i = 0; i < positionedTables.length; i += 1) {
     const first = positionedTables[i];
     const firstPos = persistedPositions[first.key];
-    const firstHeight = getTableNodeHeight(first);
+    const firstHeight = first.height;
 
     for (let j = i + 1; j < positionedTables.length; j += 1) {
       const second = positionedTables[j];
       const secondPos = persistedPositions[second.key];
-      const secondHeight = getTableNodeHeight(second);
+      const secondHeight = second.height;
 
       const overlapX = firstPos.x < secondPos.x + TABLE_NODE_WIDTH && firstPos.x + TABLE_NODE_WIDTH > secondPos.x;
       const overlapY = firstPos.y < secondPos.y + secondHeight && firstPos.y + firstHeight > secondPos.y;
@@ -41,8 +42,8 @@ function isPersistedLayoutCrowded(tables: TableModel[], persistedPositions: Reco
 }
 
 export function createAutoLayout(
-  tables: TableModel[],
-  relationships: Relationship[],
+  tables: LayoutGraphTable[],
+  relationships: LayoutGraphRelationship[],
   persistedPositions: Record<string, Position>,
 ): Record<string, Position> {
   const graph = new dagre.graphlib.Graph();
@@ -61,7 +62,7 @@ export function createAutoLayout(
   for (const table of tables) {
     graph.setNode(table.key, {
       width: TABLE_NODE_WIDTH,
-      height: getTableNodeHeight(table),
+      height: table.height,
     });
   }
 
@@ -86,7 +87,7 @@ export function createAutoLayout(
     if (node) {
       positions[table.key] = {
         x: node.x - TABLE_NODE_WIDTH / 2,
-        y: node.y - getTableNodeHeight(table) / 2,
+        y: node.y - table.height / 2,
       };
     } else {
       positions[table.key] = { x: 120, y: 120 };

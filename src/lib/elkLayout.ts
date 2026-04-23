@@ -1,7 +1,8 @@
 import { resolveHandlePair, type EdgeSide } from './edgeRouting';
-import { getTableNodeHeight, TABLE_NODE_WIDTH } from './diagramGeometry';
+import { TABLE_NODE_WIDTH } from './diagramGeometry';
 import { createAutoLayout } from './layout';
-import type { Position, RelationGroupingMode, Relationship, TableModel } from '../types/erd';
+import type { Position, RelationGroupingMode } from '../types/erd';
+import type { LayoutGraphRelationship, LayoutGraphTable } from './layoutGraph';
 
 type ElkConstructor = new () => {
   layout: (graph: unknown) => Promise<unknown>;
@@ -45,7 +46,7 @@ interface EdgeDockingPlan {
 }
 
 interface DockingCandidate {
-  relationship: Relationship;
+  relationship: LayoutGraphRelationship;
   sourceCenter: Position;
   targetCenter: Position;
   sourceHeight: number;
@@ -253,7 +254,7 @@ function clusterLayers(items: LayerPlacementItem[]): LayerCluster[] {
   return layers;
 }
 
-function getLayoutBounds(tables: TableModel[], positions: Record<string, Position>): LayoutBounds | null {
+function getLayoutBounds(tables: LayoutGraphTable[], positions: Record<string, Position>): LayoutBounds | null {
   let minX = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
@@ -263,7 +264,7 @@ function getLayoutBounds(tables: TableModel[], positions: Record<string, Positio
     const position = positions[table.key];
     if (!position) continue;
 
-    const tableHeight = getTableNodeHeight(table);
+    const tableHeight = table.height;
     minX = Math.min(minX, position.x);
     maxX = Math.max(maxX, position.x + TABLE_NODE_WIDTH);
     minY = Math.min(minY, position.y);
@@ -286,8 +287,8 @@ function getLayoutBounds(tables: TableModel[], positions: Record<string, Positio
 }
 
 function compactIsolatedTables(
-  tables: TableModel[],
-  relationships: Relationship[],
+  tables: LayoutGraphTable[],
+  relationships: LayoutGraphRelationship[],
   rawPositions: Record<string, Position>,
 ): Record<string, Position> {
   if (tables.length <= 1) return rawPositions;
@@ -303,7 +304,7 @@ function compactIsolatedTables(
     .sort((left, right) => {
       const leftPosition = rawPositions[left.key];
       const rightPosition = rawPositions[right.key];
-      return leftPosition.y - rightPosition.y || leftPosition.x - rightPosition.x || left.name.localeCompare(right.name);
+      return leftPosition.y - rightPosition.y || leftPosition.x - rightPosition.x || left.key.localeCompare(right.key);
     });
 
   if (isolatedTables.length === 0) return rawPositions;
@@ -319,7 +320,7 @@ function compactIsolatedTables(
 
     isolatedTables.forEach((table, index) => {
       const rowIndex = Math.floor(index / columns);
-      rowHeights.set(rowIndex, Math.max(rowHeights.get(rowIndex) ?? 0, getTableNodeHeight(table)));
+      rowHeights.set(rowIndex, Math.max(rowHeights.get(rowIndex) ?? 0, table.height));
     });
 
     const rowY = new Map<number, number>();
@@ -347,10 +348,10 @@ function compactIsolatedTables(
   if (!connectedBounds) return rawPositions;
 
   const maxColumnHeight = Math.max(connectedBounds.height + ISOLATED_TABLE_COLUMN_HEIGHT_PADDING, 420);
-  const columns: Array<{ tables: TableModel[]; totalHeight: number }> = [];
+  const columns: Array<{ tables: LayoutGraphTable[]; totalHeight: number }> = [];
 
   for (const table of isolatedTables) {
-    const tableHeight = getTableNodeHeight(table);
+    const tableHeight = table.height;
     const currentColumn = columns[columns.length - 1];
     const nextHeight = currentColumn ? currentColumn.totalHeight + ISOLATED_TABLE_VERTICAL_GAP + tableHeight : tableHeight;
 
@@ -373,7 +374,7 @@ function compactIsolatedTables(
         x: nextColumnX,
         y: nextTableY,
       };
-      nextTableY += getTableNodeHeight(table) + ISOLATED_TABLE_VERTICAL_GAP;
+      nextTableY += table.height + ISOLATED_TABLE_VERTICAL_GAP;
     }
 
     nextColumnX += TABLE_NODE_WIDTH + ISOLATED_TABLE_HORIZONTAL_GAP;
@@ -383,8 +384,8 @@ function compactIsolatedTables(
 }
 
 function regularizeLayeredPositions(
-  tables: TableModel[],
-  relationships: Relationship[],
+  tables: LayoutGraphTable[],
+  relationships: LayoutGraphRelationship[],
   rawPositions: Record<string, Position>,
 ): Record<string, Position> {
   const layerItems = tables
@@ -394,7 +395,7 @@ function regularizeLayeredPositions(
 
       return {
         key: table.key,
-        height: getTableNodeHeight(table),
+        height: table.height,
         x: position.x,
         y: position.y,
       } satisfies LayerPlacementItem;
@@ -671,7 +672,7 @@ function formatPadding(horizontal: number, vertical: number): string {
   return `[top=${y},left=${x},bottom=${y},right=${x}]`;
 }
 
-function buildGraphStats(tables: TableModel[], relationships: Relationship[]) {
+function buildGraphStats(tables: LayoutGraphTable[], relationships: LayoutGraphRelationship[]) {
   const indegree = new Map<string, number>();
   const outdegree = new Map<string, number>();
   const totalDegree = new Map<string, number>();
@@ -705,13 +706,13 @@ function buildGraphStats(tables: TableModel[], relationships: Relationship[]) {
 }
 
 function buildLayoutProfile(
-  tables: TableModel[],
-  relationships: Relationship[],
+  tables: LayoutGraphTable[],
+  relationships: LayoutGraphRelationship[],
   groupingMode: RelationGroupingMode = 'separate',
 ) {
   const { hubs, totalDegree } = buildGraphStats(tables, relationships);
   const averageHeight =
-    tables.length === 0 ? 0 : tables.reduce((sum, table) => sum + getTableNodeHeight(table), 0) / tables.length;
+    tables.length === 0 ? 0 : tables.reduce((sum, table) => sum + table.height, 0) / tables.length;
   const maxDegree = Math.max(0, ...Array.from(totalDegree.values()));
   const edgeDensity = relationships.length / Math.max(tables.length, 1);
   const densityPressure = clamp((edgeDensity - 0.9) / 1.8, 0, 1);
@@ -761,7 +762,7 @@ function buildLayoutProfile(
   };
 }
 
-function buildTableOrder(tables: TableModel[], relationships: Relationship[]): TableModel[] {
+function buildTableOrder(tables: LayoutGraphTable[], relationships: LayoutGraphRelationship[]): LayoutGraphTable[] {
   const { indegree, outdegree, totalDegree, neighbors, hubs } = buildGraphStats(tables, relationships);
   const visited = new Set<string>();
   const componentSize = new Map<string, number>();
@@ -804,11 +805,11 @@ function buildTableOrder(tables: TableModel[], relationships: Relationship[]): T
     const bIsHub = (indegree.get(b.key) ?? 0) > 0 && (outdegree.get(b.key) ?? 0) > 0 ? 1 : 0;
     if (bIsHub !== aIsHub) return bIsHub - aIsHub;
 
-    return a.name.localeCompare(b.name);
+    return a.key.localeCompare(b.key);
   });
 }
 
-function buildFirstPassGraph(tables: TableModel[], relationships: Relationship[]) {
+function buildFirstPassGraph(tables: LayoutGraphTable[], relationships: LayoutGraphRelationship[]) {
   const orderedTables = buildTableOrder(tables, relationships);
   const profile = buildLayoutProfile(tables, relationships);
 
@@ -833,7 +834,7 @@ function buildFirstPassGraph(tables: TableModel[], relationships: Relationship[]
     children: orderedTables.map((table) => ({
       id: table.key,
       width: TABLE_NODE_WIDTH,
-      height: getTableNodeHeight(table),
+      height: table.height,
     })),
     edges: relationships.map((rel) => ({
       id: rel.id,
@@ -876,8 +877,8 @@ function partitionItemsForPorts<T extends { sortValue: number }>(items: T[]): T[
 }
 
 function buildDockingPlan(
-  tables: TableModel[],
-  relationships: Relationship[],
+  tables: LayoutGraphTable[],
+  relationships: LayoutGraphRelationship[],
   positions: Record<string, Position>,
   preferences: LayoutPreferences,
 ): Record<string, EdgeDockingPlan> {
@@ -916,8 +917,8 @@ function buildDockingPlan(
     const targetPosition = positions[rel.targetTable];
     if (!sourceTable || !targetTable || !sourcePosition || !targetPosition) continue;
 
-    const sourceHeight = getTableNodeHeight(sourceTable);
-    const targetHeight = getTableNodeHeight(targetTable);
+    const sourceHeight = sourceTable.height;
+    const targetHeight = targetTable.height;
     const sourceCenter = {
       x: sourcePosition.x + TABLE_NODE_WIDTH / 2,
       y: sourcePosition.y + sourceHeight / 2,
@@ -1058,8 +1059,8 @@ function buildDockingPlan(
 }
 
 function buildSecondPassGraph(
-  tables: TableModel[],
-  relationships: Relationship[],
+  tables: LayoutGraphTable[],
+  relationships: LayoutGraphRelationship[],
   dockingPlan: Record<string, EdgeDockingPlan>,
   preferences: LayoutPreferences,
 ) {
@@ -1101,7 +1102,7 @@ function buildSecondPassGraph(
     children: orderedTables.map((table) => ({
       id: table.key,
       width: TABLE_NODE_WIDTH,
-      height: getTableNodeHeight(table),
+      height: table.height,
       layoutOptions: {
         'elk.portConstraints': 'FIXED_SIDE',
       },
@@ -1168,8 +1169,8 @@ function getAnchorPoint(center: Position, side: ElkPortSide, tableHeight: number
 }
 
 function createFallbackEdgePaths(
-  tables: TableModel[],
-  relationships: Relationship[],
+  tables: LayoutGraphTable[],
+  relationships: LayoutGraphRelationship[],
   positions: Record<string, Position>,
   preferences: LayoutPreferences = {},
 ): Record<string, ElkEdgePath> {
@@ -1187,11 +1188,11 @@ function createFallbackEdgePaths(
 
     const sourceCenter = {
       x: sourcePos.x + TABLE_NODE_WIDTH / 2,
-      y: sourcePos.y + getTableNodeHeight(sourceTable) / 2,
+        y: sourcePos.y + sourceTable.height / 2,
     };
     const targetCenter = {
       x: targetPos.x + TABLE_NODE_WIDTH / 2,
-      y: targetPos.y + getTableNodeHeight(targetTable) / 2,
+        y: targetPos.y + targetTable.height / 2,
     };
     const sourceSideCounts = {
       left: sideCounts.get(`${rel.sourceTable}::left`) ?? 0,
@@ -1206,8 +1207,8 @@ function createFallbackEdgePaths(
       bottom: sideCounts.get(`${rel.targetTable}::bottom`) ?? 0,
     };
     const handlePair = resolveHandlePair(sourceCenter, targetCenter, {
-      sourceHeight: getTableNodeHeight(sourceTable),
-      targetHeight: getTableNodeHeight(targetTable),
+      sourceHeight: sourceTable.height,
+      targetHeight: targetTable.height,
       sourceSideCounts,
       targetSideCounts,
       loadPenalty: 36,
@@ -1224,8 +1225,8 @@ function createFallbackEdgePaths(
 
     const sourceLaneOffset = (sourceIndex % 5) * 12 - 24;
     const targetLaneOffset = groupingMode === 'bundled' ? 0 : (targetIndex % 5) * 12 - 24;
-    const sourceAnchor = getAnchorPoint(sourceCenter, sourceSide, getTableNodeHeight(sourceTable), sourceLaneOffset);
-    const targetAnchor = getAnchorPoint(targetCenter, targetSide, getTableNodeHeight(targetTable), targetLaneOffset);
+    const sourceAnchor = getAnchorPoint(sourceCenter, sourceSide, sourceTable.height, sourceLaneOffset);
+    const targetAnchor = getAnchorPoint(targetCenter, targetSide, targetTable.height, targetLaneOffset);
     const midX = sourceAnchor.x + (targetAnchor.x - sourceAnchor.x) / 2;
     const midY = sourceAnchor.y + (targetAnchor.y - sourceAnchor.y) / 2;
 
@@ -1246,8 +1247,8 @@ function createFallbackEdgePaths(
 }
 
 export async function createElkLayout(
-  tables: TableModel[],
-  relationships: Relationship[],
+  tables: LayoutGraphTable[],
+  relationships: LayoutGraphRelationship[],
   preferences: LayoutPreferences = {},
 ): Promise<ElkLayoutResult> {
   const elk = await getElkInstance();
@@ -1264,7 +1265,7 @@ export async function createElkLayout(
   };
 }
 
-function createEmergencyGridPositions(tables: TableModel[]): Record<string, Position> {
+function createEmergencyGridPositions(tables: LayoutGraphTable[]): Record<string, Position> {
   if (tables.length === 0) return {};
 
   const columnCount = Math.max(1, Math.ceil(Math.sqrt(tables.length)));
@@ -1274,7 +1275,7 @@ function createEmergencyGridPositions(tables: TableModel[]): Record<string, Posi
 
   for (const [index, table] of tables.entries()) {
     const row = Math.floor(index / columnCount);
-    rowHeights[row] = Math.max(rowHeights[row] ?? 0, getTableNodeHeight(table) + 96);
+    rowHeights[row] = Math.max(rowHeights[row] ?? 0, table.height + 96);
   }
 
   const rowOffsets: number[] = [];
@@ -1298,8 +1299,8 @@ function createEmergencyGridPositions(tables: TableModel[]): Record<string, Posi
 }
 
 export function createFallbackLayout(
-  tables: TableModel[],
-  relationships: Relationship[],
+  tables: LayoutGraphTable[],
+  relationships: LayoutGraphRelationship[],
   persistedPositions: Record<string, Position>,
   preferences: LayoutPreferences = {},
 ): ElkLayoutResult {
@@ -1313,8 +1314,8 @@ export function createFallbackLayout(
 }
 
 export function createSafeFallbackLayout(
-  tables: TableModel[],
-  relationships: Relationship[],
+  tables: LayoutGraphTable[],
+  relationships: LayoutGraphRelationship[],
   persistedPositions: Record<string, Position>,
   preferences: LayoutPreferences = {},
 ): FallbackLayoutComputation {

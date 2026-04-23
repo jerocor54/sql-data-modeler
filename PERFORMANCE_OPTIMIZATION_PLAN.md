@@ -237,8 +237,8 @@ Cada fase se ejecuta así:
 | 1 | Abrir seams arquitectónicos mínimos | **Cerrada** |
 | 2 | Pipeline off-main-thread | **Cerrada** |
 | 3 | Estado, render y React Flow | **Cerrada con caveat menor** |
-| 4 | UX para modelos gigantes | Pendiente |
-| 5 | Memoria, cachés y payloads | Pendiente |
+| 4 | UX para modelos gigantes | **Cerrada en código con caveats de documentación** |
+| 5 | Memoria, cachés y payloads | **En curso — slice 1 (payload de layout)** |
 | 6 | Astro shell, carga inicial y bundles | Pendiente |
 | 7 | Observabilidad y reglas anti-regresión | Pendiente |
 | 8 | Exportación escalable y cierre | Pendiente |
@@ -577,6 +577,12 @@ Con miles de tablas no alcanza con “optimizar”. También hay que cambiar la 
 
 La UX ya está diseñada para escala extrema y no solo para modelos chicos.
 
+### Estado real al arranque de Fase 5
+
+- La base de código YA absorbió la mayor parte de esta fase mediante overview/focus implícito, culling por viewport y refinamiento diferido de edges en `src/features/diagram-presentation/useDiagramPresentation.ts`, `src/features/diagram-canvas/DiagramCanvasSurface.tsx` y `src/features/diagram-canvas/useDiagramCanvasModel.ts`.
+- El documento estaba desfasado: decía “pendiente” aunque la implementación ya dejó la UX preparada para escalar bastante mejor.
+- Lo que queda abierto acá no es rehacer navegación desde cero, sino cerrar caveats de narrativa/validación cuando corresponda sin frenar el arranque de Fase 5.
+
 ---
 
 ## Fase 5 — Memoria, cachés y payloads
@@ -603,18 +609,31 @@ Aunque la UI ya sea más fluida, el costo de memoria puede seguir siendo un lím
 
 ## Paso a paso
 
-1. Revisar shape del modelo parseado.
-2. Separar modelo de dominio, modelo de layout y modelo de render.
-3. Reducir duplicación de strings/objetos.
-4. Evaluar caché por SQL/hash/estructura.
-5. Minimizar payload entre workers y main.
-6. Evitar persistir estructuras gigantes en `localStorage`.
+### Slice 1 — payload de layout y medición
+
+1. [x] Corregir la narrativa del plan para dejar explícito que Fase 4 quedó efectivamente cerrada en código.
+2. [x] Introducir un contrato compacto de layout (`tables`, `relationships`, `persistedPositions`) derivado dentro de `auto-layout`.
+3. [ ] Propagar ese contrato al worker de layout y a las librerías de layout.
+4. [ ] Medir payload bytes, serialización y round-trip del worker en benchmark state transitorio.
+
+### Slices posteriores — todavía pendientes
+
+5. [ ] Revisar shape del modelo parseado con budgets explícitos.
+6. [ ] Separar con más fuerza modelo de dominio, modelo de layout y modelo de render donde aparezca duplicación REAL.
+7. [ ] Reducir duplicación de strings/objetos en parser/render si la medición confirma que sigue pesando.
+8. [ ] Evaluar caché por SQL/hash/estructura.
+9. [ ] Evitar persistir estructuras gigantes en `localStorage` sin necesidad.
 
 ## Validación
 
 - [ ] menor presión de memoria
 - [ ] payloads más compactos
 - [ ] menos churn de objetos
+
+### Estado del slice actual
+
+- Slice 1 de Fase 5 se enfoca SOLO en compactar el payload de layout y medir el costo de transferencia antes de abrir cambios mayores en store o normalización del dominio.
+- Si la ganancia queda tapada por churn de store/render, eso se documenta como follow-up para slices posteriores, NO como excusa para agrandar el alcance ahora.
 
 ## Criterio de salida
 

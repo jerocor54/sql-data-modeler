@@ -1,8 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
+import type { LayoutWorkerMetrics } from '../../lib/layoutGraph';
 import type { ParseResult } from '../../types/erd';
 
 export type DiagramBenchmarkTrigger = 'editor-change' | 'dataset-load' | 'manual-rerun';
 export type DiagramBenchmarkLayoutEngine = 'elk' | 'fallback';
+
+export interface DiagramBenchmarkLayoutMetrics extends Partial<LayoutWorkerMetrics> {}
 
 export interface DiagramBenchmarkRunMeta {
   datasetId?: string;
@@ -17,6 +20,7 @@ export interface DiagramBenchmarkResult extends DiagramBenchmarkRunMeta {
   relationshipCount: number;
   parseMs: number;
   layoutMs: number;
+  layoutMetrics?: DiagramBenchmarkLayoutMetrics;
   totalMs: number;
   layoutEngine: DiagramBenchmarkLayoutEngine;
   recordedAt: string;
@@ -26,6 +30,7 @@ interface DiagramBenchmarkRun extends DiagramBenchmarkRunMeta {
   runId: number;
   parseMs: number;
   layoutMs: number;
+  layoutMetrics?: DiagramBenchmarkLayoutMetrics;
   layoutEngine: DiagramBenchmarkLayoutEngine;
   tableCount: number;
   relationshipCount: number;
@@ -70,6 +75,7 @@ export function useDiagramPerformance() {
       runId: ++runCounterRef.current,
       parseMs: 0,
       layoutMs: 0,
+      layoutMetrics: undefined,
       layoutEngine: 'elk',
       tableCount: 0,
       relationshipCount: 0,
@@ -97,11 +103,26 @@ export function useDiagramPerformance() {
     performance.mark(buildMarkName(run.runId, 'layout', 'start'));
   }, []);
 
-  const finishLayout = useCallback((runId: number, layoutEngine: DiagramBenchmarkLayoutEngine) => {
+  const finishLayout = useCallback((
+    runId: number,
+    layoutEngine: DiagramBenchmarkLayoutEngine,
+    layoutMetrics?: DiagramBenchmarkLayoutMetrics,
+  ) => {
     const run = activeRunRef.current;
     if (!run || run.runId !== runId) return;
     run.layoutEngine = layoutEngine;
     run.layoutMs = measureDuration(run.runId, 'layout');
+    run.layoutMetrics = layoutMetrics
+      ? {
+          payloadBytes: layoutMetrics.payloadBytes,
+          serializeMs: layoutMetrics.serializeMs != null ? Number(layoutMetrics.serializeMs.toFixed(2)) : undefined,
+          postMessageMs: layoutMetrics.postMessageMs != null ? Number(layoutMetrics.postMessageMs.toFixed(2)) : undefined,
+          roundTripMs: layoutMetrics.roundTripMs != null ? Number(layoutMetrics.roundTripMs.toFixed(2)) : undefined,
+          workerComputeMs: layoutMetrics.workerComputeMs != null ? Number(layoutMetrics.workerComputeMs.toFixed(2)) : undefined,
+          estimatedTransferMs:
+            layoutMetrics.estimatedTransferMs != null ? Number(layoutMetrics.estimatedTransferMs.toFixed(2)) : undefined,
+        }
+      : undefined;
   }, []);
 
   const finalizeRun = useCallback((runId: number | null | undefined) => {
@@ -120,6 +141,7 @@ export function useDiagramPerformance() {
       relationshipCount: run.relationshipCount,
       parseMs: Number(run.parseMs.toFixed(2)),
       layoutMs: Number(run.layoutMs.toFixed(2)),
+      layoutMetrics: run.layoutMetrics,
       totalMs: Number(totalMs.toFixed(2)),
       layoutEngine: run.layoutEngine,
       recordedAt: new Date().toISOString(),

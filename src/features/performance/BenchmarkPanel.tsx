@@ -21,6 +21,11 @@ function formatDuration(value: number): string {
   return `${value.toFixed(2)} ms`;
 }
 
+function formatBytes(value: number): string {
+  if (value < 1024) return `${value} B`;
+  return `${(value / 1024).toFixed(2)} KB`;
+}
+
 export default function BenchmarkPanel({
   latestResult,
   history,
@@ -139,6 +144,31 @@ export default function BenchmarkPanel({
             <div><span style={{ color: 'var(--text-muted)' }}>Total usable</span><br />{formatDuration(latestResult.totalMs)}</div>
             <div><span style={{ color: 'var(--text-muted)' }}>Relaciones</span><br />{latestResult.relationshipCount}</div>
           </div>
+          {latestResult.layoutMetrics && (
+            <div style={{ display: 'grid', gap: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+              <strong style={{ fontSize: 12 }}>Payload layout worker</strong>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, fontSize: 12 }}>
+                {latestResult.layoutMetrics.payloadBytes != null && (
+                  <div><span style={{ color: 'var(--text-muted)' }}>Payload</span><br />{formatBytes(latestResult.layoutMetrics.payloadBytes)}</div>
+                )}
+                {latestResult.layoutMetrics.serializeMs != null && (
+                  <div><span style={{ color: 'var(--text-muted)' }}>Serialize</span><br />{formatDuration(latestResult.layoutMetrics.serializeMs)}</div>
+                )}
+                {latestResult.layoutMetrics.postMessageMs != null && (
+                  <div><span style={{ color: 'var(--text-muted)' }}>postMessage</span><br />{formatDuration(latestResult.layoutMetrics.postMessageMs)}</div>
+                )}
+                {latestResult.layoutMetrics.roundTripMs != null && (
+                  <div><span style={{ color: 'var(--text-muted)' }}>Round-trip</span><br />{formatDuration(latestResult.layoutMetrics.roundTripMs)}</div>
+                )}
+                {latestResult.layoutMetrics.workerComputeMs != null && (
+                  <div><span style={{ color: 'var(--text-muted)' }}>Worker compute</span><br />{formatDuration(latestResult.layoutMetrics.workerComputeMs)}</div>
+                )}
+                {latestResult.layoutMetrics.estimatedTransferMs != null && (
+                  <div><span style={{ color: 'var(--text-muted)' }}>Transfer estimado</span><br />{formatDuration(latestResult.layoutMetrics.estimatedTransferMs)}</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -158,6 +188,8 @@ export default function BenchmarkPanel({
                   <th style={{ padding: '6px 4px' }}>Rel.</th>
                   <th style={{ padding: '6px 4px' }}>Parse</th>
                   <th style={{ padding: '6px 4px' }}>Layout</th>
+                  <th style={{ padding: '6px 4px' }}>Payload</th>
+                  <th style={{ padding: '6px 4px' }}>Round-trip</th>
                   <th style={{ padding: '6px 4px' }}>Total</th>
                   <th style={{ padding: '6px 4px' }}>Motor</th>
                 </tr>
@@ -167,12 +199,18 @@ export default function BenchmarkPanel({
                   <tr key={result.runId} style={{ borderTop: '1px solid var(--border)' }}>
                     <td style={{ padding: '6px 4px' }}>{result.datasetLabel ?? 'manual'}</td>
                     <td style={{ padding: '6px 4px' }}>{result.tableCount}</td>
-                    <td style={{ padding: '6px 4px' }}>{result.relationshipCount}</td>
-                    <td style={{ padding: '6px 4px' }}>{formatDuration(result.parseMs)}</td>
-                    <td style={{ padding: '6px 4px' }}>{formatDuration(result.layoutMs)}</td>
-                    <td style={{ padding: '6px 4px' }}>{formatDuration(result.totalMs)}</td>
-                    <td style={{ padding: '6px 4px' }}>{result.layoutEngine}</td>
-                  </tr>
+                     <td style={{ padding: '6px 4px' }}>{result.relationshipCount}</td>
+                     <td style={{ padding: '6px 4px' }}>{formatDuration(result.parseMs)}</td>
+                     <td style={{ padding: '6px 4px' }}>{formatDuration(result.layoutMs)}</td>
+                     <td style={{ padding: '6px 4px' }}>
+                       {result.layoutMetrics?.payloadBytes != null ? formatBytes(result.layoutMetrics.payloadBytes) : '—'}
+                     </td>
+                     <td style={{ padding: '6px 4px' }}>
+                       {result.layoutMetrics?.roundTripMs != null ? formatDuration(result.layoutMetrics.roundTripMs) : '—'}
+                     </td>
+                     <td style={{ padding: '6px 4px' }}>{formatDuration(result.totalMs)}</td>
+                     <td style={{ padding: '6px 4px' }}>{result.layoutEngine}</td>
+                   </tr>
                 ))}
               </tbody>
             </table>

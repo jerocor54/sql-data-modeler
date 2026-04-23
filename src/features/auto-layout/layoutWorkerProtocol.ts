@@ -1,20 +1,22 @@
 import type { ElkLayoutResult } from '../../lib/elkLayout';
+import type { LayoutGraphModel, LayoutWorkerMetrics } from '../../lib/layoutGraph';
 import type { WorkerJobError, WorkerJobRequest, WorkerJobResponse } from '../../lib/workers/jobProtocol';
-import type { DiagramViewport, Position, RelationGroupingMode, Relationship, TableModel } from '../../types/erd';
+import type { RelationGroupingMode } from '../../types/erd';
 
 export const LAYOUT_WORKER_KIND = 'auto-layout';
 export const ELK_LAYOUT_TIMEOUT_MS = 2500;
 
 export interface LayoutWorkerPayload {
-  relationGrouping: RelationGroupingMode;
-  relationships: Relationship[];
-  tablePositions: Record<string, Position | DiagramViewport>;
-  tables: TableModel[];
+  model: LayoutGraphModel;
+  preferences: {
+    relationGrouping: RelationGroupingMode;
+  };
 }
 
 export interface LayoutWorkerResult {
   engine: 'elk' | 'fallback';
   layout: ElkLayoutResult;
+  metrics?: Pick<LayoutWorkerMetrics, 'workerComputeMs'>;
   warning: string;
 }
 

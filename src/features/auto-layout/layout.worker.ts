@@ -13,26 +13,37 @@ const workerScope = self as unknown as {
 };
 
 async function createLayoutResult(request: LayoutWorkerRequest): Promise<LayoutWorkerResult> {
-  const { relationGrouping, relationships, tablePositions, tables } = request.payload;
-  const preferences = { relationGrouping };
+  const { model, preferences } = request.payload;
+  const computeStart = performance.now();
 
   try {
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error('ELK_LAYOUT_TIMEOUT')), ELK_LAYOUT_TIMEOUT_MS);
     });
 
-    const layout = await Promise.race([createElkLayout(tables, relationships, preferences), timeoutPromise]);
+    const layout = await Promise.race([createElkLayout(model.tables, model.relationships, preferences), timeoutPromise]);
     return {
       engine: 'elk',
       layout,
+      metrics: {
+        workerComputeMs: performance.now() - computeStart,
+      },
       warning: '',
     };
   } catch (error) {
-    const fallbackResult = createSafeFallbackLayout(tables, relationships, tablePositions, preferences);
+    const fallbackResult = createSafeFallbackLayout(
+      model.tables,
+      model.relationships,
+      model.persistedPositions,
+      preferences,
+    );
 
     return {
       engine: 'fallback',
       layout: fallbackResult.layout,
+      metrics: {
+        workerComputeMs: performance.now() - computeStart,
+      },
       warning:
         fallbackResult.mode === 'emergency'
           ? 'ELK y el layout rápido fallaron en este esquema grande; se activó una grilla de emergencia para mantener la app operativa.'

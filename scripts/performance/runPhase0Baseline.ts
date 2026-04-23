@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
 import { createBenchmarkDataset, listBenchmarkDatasetPresets, type BenchmarkDatasetPresetId } from '../../src/features/performance/benchmarkDatasets.ts';
+import { createLayoutGraphModel } from '../../src/features/auto-layout/layoutModel.ts';
 import { createElkLayout } from '../../src/lib/elkLayout.ts';
 import { parseSqlToModel } from '../../src/lib/sqlParser.ts';
 
@@ -139,7 +140,8 @@ async function runPreset(
     try {
       const parsed = parseSqlToModel(dataset.sql, 'postgresql');
       if (mode === 'full') {
-        await createElkLayout(parsed.tables, parsed.relationships, { relationGrouping: 'bundled' });
+        const model = createLayoutGraphModel(parsed, {});
+        await createElkLayout(model.tables, model.relationships, { relationGrouping: 'bundled' });
       }
     } catch (error) {
       warmupErrorMessage = error instanceof Error ? error.message : String(error);
@@ -169,7 +171,8 @@ async function runPreset(
 
       try {
         const layoutStart = performance.now();
-        await createElkLayout(parsed.tables, parsed.relationships, { relationGrouping: 'bundled' });
+        const model = createLayoutGraphModel(parsed, {});
+        await createElkLayout(model.tables, model.relationships, { relationGrouping: 'bundled' });
         const layoutMs = performance.now() - layoutStart;
 
         runs.push({

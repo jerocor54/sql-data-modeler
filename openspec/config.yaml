@@ -1,0 +1,69 @@
+schema: spec-driven
+
+context: |
+  Stack: Astro 6 + React 19 + TypeScript 5 on Node 22.
+  Architecture: static Astro shell, client-side React app, Zustand persistence, feature-oriented extraction from ERDApp.
+  Performance direction: continue PERFORMANCE_OPTIMIZATION_PLAN.md; phases 0-3 done, 4-8 pending.
+  Deployment: static GitHub Pages with Astro base path /sql-data-modeler.
+  Testing: no formal test runner detected; benchmark scripts exist via tsx.
+  Quality: TypeScript strict mode, @astrojs/check available, no linter/formatter config detected.
+  Guidance: local skills in skills/ plus AGENT.md architectural rules.
+
+strict_tdd: false
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Identify affected modules/packages
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group tasks by phase (infrastructure, implementation, testing)
+    - Use hierarchical numbering (1.1, 1.2, etc.)
+    - Keep tasks small enough to complete in one session
+  apply:
+    - Follow existing code patterns and conventions
+    - Load relevant coding skills for the project stack
+  verify:
+    - Run tests if test infrastructure exists
+    - Compare implementation against every spec scenario
+  archive:
+    - Warn before merging destructive deltas (large removals)
+
+testing:
+  strict_tdd: false
+  detected: 2026-04-22
+  test_runner:
+    available: false
+    framework: null
+    command: null
+  layers:
+    unit:
+      available: false
+      tool: null
+    integration:
+      available: false
+      tool: null
+    e2e:
+      available: false
+      tool: null
+  coverage:
+    available: false
+    command: null
+  quality_tools:
+    linter:
+      available: false
+      command: null
+    type_checker:
+      available: true
+      command: npx tsc --noEmit
+    formatter:
+      available: false
+      command: null
+  notes:
+    - Benchmark scripts exist via tsx but do not provide a test runner.
+    - @astrojs/check is installed and can complement type validation.

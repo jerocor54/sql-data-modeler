@@ -9,12 +9,17 @@ import type {
   Relationship,
   TableModel,
 } from '../../types/erd';
-import type { DiagramBenchmarkLayoutEngine } from '../performance/diagramPerformance';
+import type { DiagramBenchmarkLayoutEngine, DiagramBenchmarkLayoutMetrics } from '../performance/diagramPerformance';
 import LayoutWorker from './layout.worker?worker';
+import { createLayoutGraphModel } from './layoutModel';
 import { LAYOUT_WORKER_KIND, type LayoutWorkerRequest, type LayoutWorkerResponse } from './layoutWorkerProtocol';
 
 interface UseAutoLayoutInput {
-  finishLayout: (runId: number, layoutEngine: DiagramBenchmarkLayoutEngine) => void;
+  finishLayout: (
+    runId: number,
+    layoutEngine: DiagramBenchmarkLayoutEngine,
+    layoutMetrics?: DiagramBenchmarkLayoutMetrics,
+  ) => void;
   isModelReady: boolean;
   layoutRevision: number;
   parseRunId: number | null;
@@ -26,6 +31,8 @@ interface UseAutoLayoutInput {
 }
 
 export type LayoutEngineMode = 'elk' | 'fallback';
+
+const payloadEncoder = new TextEncoder();
 
 export function useAutoLayout({
   finishLayout,
@@ -66,13 +73,49 @@ export function useAutoLayout({
     setLayoutPending(true);
     startLayout(parseRunId);
 
+    const roundTripStart = performance.now();
+
+    const model = createLayoutGraphModel({ tables, relationships, errors: [], warnings: [], ambiguousReferences: [] }, tablePositions);
+    const payloadMetricsStart = performance.now();
+    const serializedPayload = JSON.stringify({
+      model,
+      preferences: {
+        relationGrouping,
+      },
+    });
+    const serializeMs = performance.now() - payloadMetricsStart;
+    const payloadBytes = payloadEncoder.encode(serializedPayload).byteLength;
+
+    const request: LayoutWorkerRequest = {
+      kind: LAYOUT_WORKER_KIND,
+      jobId,
+      payload: {
+        model,
+        preferences: {
+          relationGrouping,
+        },
+      },
+    };
+    let postMessageMs = 0;
+
     worker.onmessage = (event: MessageEvent<LayoutWorkerResponse>) => {
       const response = event.data;
 
       if (response.jobId !== activeJobIdRef.current || response.kind !== LAYOUT_WORKER_KIND) return;
 
+      const roundTripMs = performance.now() - roundTripStart;
+      const workerComputeMs = response.status === 'success' ? response.result.metrics?.workerComputeMs : undefined;
+      const layoutMetrics: DiagramBenchmarkLayoutMetrics = {
+        payloadBytes,
+        serializeMs,
+        postMessageMs,
+        roundTripMs,
+        workerComputeMs,
+        estimatedTransferMs: workerComputeMs != null ? Math.max(0, roundTripMs - workerComputeMs) : undefined,
+      };
+
       if (response.status === 'success') {
-        finishLayout(parseRunId, response.result.engine);
+        finishLayout(parseRunId, response.result.engine, layoutMetrics);
         setElkLayout(response.result.layout);
         setLayoutMode(response.result.engine);
         setLayoutWarning(response.result.warning);
@@ -80,7 +123,7 @@ export function useAutoLayout({
         return;
       }
 
-      finishLayout(parseRunId, 'fallback');
+      finishLayout(parseRunId, 'fallback', layoutMetrics);
       setLayoutMode('fallback');
       setLayoutWarning(response.error.message);
       setLayoutPending(false);
@@ -89,24 +132,23 @@ export function useAutoLayout({
     worker.onerror = () => {
       if (jobId !== activeJobIdRef.current) return;
 
-      finishLayout(parseRunId, 'fallback');
+      const roundTripMs = performance.now() - roundTripStart;
+
+      finishLayout(parseRunId, 'fallback', {
+        payloadBytes,
+        serializeMs,
+        postMessageMs,
+        roundTripMs,
+        estimatedTransferMs: roundTripMs,
+      });
       setLayoutMode('fallback');
       setLayoutWarning('Unexpected layout worker failure.');
       setLayoutPending(false);
     };
 
-    const request: LayoutWorkerRequest = {
-      kind: LAYOUT_WORKER_KIND,
-      jobId,
-      payload: {
-        relationGrouping,
-        relationships,
-        tablePositions,
-        tables,
-      },
-    };
-
+    const postMessageStart = performance.now();
     worker.postMessage(request);
+    postMessageMs = performance.now() - postMessageStart;
 
     return () => {
       if (workerRef.current === worker) workerRef.current = null;

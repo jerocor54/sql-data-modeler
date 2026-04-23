@@ -27,3 +27,6 @@ pnpm-debug.log*
 
 # caches
 .cache/
+
+# agent artifacts
+.atl/
