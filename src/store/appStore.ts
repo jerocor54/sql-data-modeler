@@ -3,7 +3,6 @@ import { persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 import type {
   Dialect,
-  Position,
   RelationGroupingMode,
   RelationLinePattern,
   RelationLineStyle,
@@ -57,6 +56,7 @@ export interface AppState {
   sqlText: string;
   theme: ThemeMode;
   hasHydrated: boolean;
+  hasStoreHydrated: boolean;
   globalTypeMode: TypeDisplayMode;
   exportScale: 1 | 2 | 3 | 4;
   lineStyle: RelationLineStyle;
@@ -66,8 +66,8 @@ export interface AppState {
   dialect: Dialect;
   viewMode: ViewMode;
   tableConfig: Record<string, TableVisualConfig>;
-  tablePositions: Record<string, Position>;
   setHasHydrated: (value: boolean) => void;
+  setHasStoreHydrated: (value: boolean) => void;
   setSqlText: (value: string) => void;
   setTheme: (theme: ThemeMode) => void;
   setGlobalTypeMode: (mode: TypeDisplayMode) => void;
@@ -80,8 +80,6 @@ export interface AppState {
   setViewMode: (mode: ViewMode) => void;
   setTableConfig: (tableKey: string, patch: Partial<TableVisualConfig>) => void;
   resetAllTableColorsToTheme: () => void;
-  setTablePosition: (tableKey: string, position: Position) => void;
-  resetTablePositions: () => void;
   ensureTableConfig: (tableKey: string) => TableVisualConfig;
 }
 
@@ -98,7 +96,6 @@ export type DurableAppState = Pick<
   | 'dialect'
   | 'viewMode'
   | 'tableConfig'
-  | 'tablePositions'
 >;
 
 function readInitialViewPreferences(): Pick<AppState, 'viewMode'> {
@@ -137,6 +134,7 @@ export const useAppStore = create<AppState>()(
       sqlText: DEFAULT_SQL,
       theme: 'deepblue',
       hasHydrated: false,
+      hasStoreHydrated: false,
       globalTypeMode: 'text',
       exportScale: 2,
       lineStyle: 'orthogonal',
@@ -146,8 +144,8 @@ export const useAppStore = create<AppState>()(
       dialect: 'auto',
       viewMode: initialViewPreferences.viewMode,
       tableConfig: {},
-      tablePositions: {},
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
+      setHasStoreHydrated: (hasStoreHydrated) => set({ hasStoreHydrated }),
       setSqlText: (value) => set({ sqlText: value }),
       setTheme: (theme) => set({ theme }),
       setGlobalTypeMode: (globalTypeMode) => set({ globalTypeMode }),
@@ -181,14 +179,6 @@ export const useAppStore = create<AppState>()(
             ]),
           ),
         })),
-      setTablePosition: (tableKey, position) =>
-        set((state) => ({
-          tablePositions: {
-            ...state.tablePositions,
-            [tableKey]: position,
-          },
-        })),
-      resetTablePositions: () => set({ tablePositions: {} }),
       ensureTableConfig: (tableKey) => {
         const existing = get().tableConfig[tableKey];
         if (existing) return existing;
@@ -199,7 +189,7 @@ export const useAppStore = create<AppState>()(
     {
       name: STORAGE_KEY,
       onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+        state?.setHasStoreHydrated(true);
       },
       partialize: (state) => ({
         sqlText: state.sqlText,
@@ -213,7 +203,6 @@ export const useAppStore = create<AppState>()(
         dialect: state.dialect,
         viewMode: state.viewMode,
         tableConfig: state.tableConfig,
-        tablePositions: state.tablePositions,
       }),
     },
   ),
@@ -221,6 +210,18 @@ export const useAppStore = create<AppState>()(
 
 export function useAppStoreHasHydrated(): boolean {
   return useAppStore((state) => state.hasHydrated);
+}
+
+export function useAppStoreHasStoreHydrated(): boolean {
+  return useAppStore((state) => state.hasStoreHydrated);
+}
+
+export function useAppStoreHydrationActions() {
+  return useAppStore(
+    useShallow((state) => ({
+      setHasHydrated: state.setHasHydrated,
+    })),
+  );
 }
 
 export function useAppStoreSqlState() {
@@ -261,16 +262,6 @@ export function useAppStoreTableConfigState() {
       tableConfig: state.tableConfig,
       setTableConfig: state.setTableConfig,
       resetAllTableColorsToTheme: state.resetAllTableColorsToTheme,
-    })),
-  );
-}
-
-export function useAppStoreTablePositionState() {
-  return useAppStore(
-    useShallow((state) => ({
-      tablePositions: state.tablePositions,
-      setTablePosition: state.setTablePosition,
-      resetTablePositions: state.resetTablePositions,
     })),
   );
 }

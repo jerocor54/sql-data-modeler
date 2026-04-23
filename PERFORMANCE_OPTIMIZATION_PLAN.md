@@ -616,19 +616,20 @@ Aunque la UI ya sea más fluida, el costo de memoria puede seguir siendo un lím
 3. [ ] Propagar ese contrato al worker de layout y a las librerías de layout.
 4. [ ] Medir payload bytes, serialización y round-trip del worker en benchmark state transitorio.
 
-### Slice 2 — store/persistencia y churn de suscripción
+### Slice 2 — persistencia acotada de `tablePositions`
 
-5. [ ] Sacar `panelSplit`, `activeViewTab` y `diagramViewport` del snapshot durable para dejar ese churn como estado de sesión.
-6. [ ] Reemplazar la suscripción amplia de `ERDApp.tsx` por selectores/hooks acotados del store durable.
-7. [ ] Validar que `sqlText`, `tablePositions`, `tableConfig` y preferencias durables mantengan continuidad tras reload.
+5. [x] Sacar `panelSplit`, `activeViewTab` y `diagramViewport` del snapshot durable para dejar ese churn como estado de sesión.
+6. [x] Reemplazar la suscripción amplia de `ERDApp.tsx` por selectores/hooks acotados del store durable.
+7. [ ] Mover SOLO la durabilidad de `tablePositions` a un canal dedicado con flush diferido, dirty-check y fallback de hidratación desde el snapshot legacy cuando falte la nueva clave.
+8. [ ] Validar que `sqlText`, `tableConfig`, preferencias durables y la continuidad del layout manual sigan restaurando tras reload sin reabrir payload/parser/render.
 
 ### Slices posteriores — todavía pendientes
 
-8. [ ] Revisar shape del modelo parseado con budgets explícitos.
-9. [ ] Separar con más fuerza modelo de dominio, modelo de layout y modelo de render donde aparezca duplicación REAL.
-10. [ ] Reducir duplicación de strings/objetos en parser/render si la medición confirma que sigue pesando.
-11. [ ] Evaluar caché por SQL/hash/estructura.
-12. [ ] Evitar persistir estructuras gigantes en `localStorage` sin necesidad.
+9. [ ] Revisar shape del modelo parseado con budgets explícitos.
+10. [ ] Separar con más fuerza modelo de dominio, modelo de layout y modelo de render donde aparezca duplicación REAL.
+11. [ ] Reducir duplicación de strings/objetos en parser/render si la medición confirma que sigue pesando.
+12. [ ] Evaluar caché por SQL/hash/estructura.
+13. [ ] Evitar persistir estructuras gigantes en `localStorage` sin necesidad.
 
 ## Validación
 
@@ -638,8 +639,9 @@ Aunque la UI ya sea más fluida, el costo de memoria puede seguir siendo un lím
 
 ### Estado del slice actual
 
-- Slice 1 de Fase 5 se enfoca SOLO en compactar el payload de layout y medir el costo de transferencia antes de abrir cambios mayores en store o normalización del dominio.
-- El siguiente slice acotado después del payload es store/persistencia: reducir churn de suscripción en `ERDApp.tsx` y sacar estado de sesión del snapshot durable, sin reabrir parser/layout/render.
+- Slice 1 de Fase 5 se enfocó SOLO en compactar el payload de layout y medir el costo de transferencia antes de abrir cambios mayores en store o normalización del dominio.
+- El slice activo siguiente queda EXPLÍCITAMENTE acotado a `tablePositions`: sacar sus escrituras del snapshot persistido amplio, bajar churn síncrono de `localStorage` y preservar continuidad del layout manual vía una clave dedicada con fallback legacy.
+- Queda fuera de alcance reabrir payloads, parser, render, browser validation o una re-arquitectura general del store.
 
 ## Criterio de salida
 

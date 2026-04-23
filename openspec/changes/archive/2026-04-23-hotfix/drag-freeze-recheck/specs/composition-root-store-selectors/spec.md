@@ -1,14 +1,12 @@
-# Composition Root Store Selectors Specification
+# Delta for Composition Root Store Selectors
 
-## Purpose
-
-Define selector-based app-store reads at the composition root so `ERDApp.tsx` stops invalidating from unrelated store churn while remaining the composition root.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Keep the composition root on bounded store subscriptions
 
 The system MUST keep `ERDApp.tsx` as the composition root, and it MUST consume app-store state through explicit selectors or equivalent bounded subscription seams. For drag-sensitive presentation wiring, the root MUST pass only the minimal membership-sensitive inputs required downstream, rather than forwarding high-churn position-only node data into presentation derivation.
+
+(Previously: The root had to use bounded selectors instead of subscribing to the whole store, but it did not explicitly constrain drag-sensitive presentation inputs.)
 
 #### Scenario: Read only the slices each boundary needs
 
@@ -29,14 +27,3 @@ The system MUST keep `ERDApp.tsx` as the composition root, and it MUST consume a
 - WHEN it prepares inputs for presentation derivation
 - THEN it forwards stable membership-sensitive inputs instead of the full changing node array
 - AND downstream presentation recalculation is reserved for material membership or visibility changes
-
-### Requirement: Preserve downstream workspace contracts while narrowing reads
-
-The system SHALL narrow store reads without moving ownership away from the existing composition boundary and without changing workspace-facing contracts for manual layout, parser inputs, or React Flow wiring.
-
-#### Scenario: Keep diagram workspace wiring stable
-
-- GIVEN diagram workspace and canvas features receive viewport, node, edge, and callback props from the root
-- WHEN composition-root subscriptions are narrowed
-- THEN those features continue receiving equivalent props and behaviors
-- AND no React Flow structural rewrite is required

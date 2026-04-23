@@ -16,11 +16,14 @@ import { DownloadCloud, Moon, MoreHorizontal, Sparkles, Sun } from 'lucide-react
 import { downloadDataUrl } from '../lib/download';
 import {
   useAppStoreDurablePreferences,
+  useAppStoreHasStoreHydrated,
   useAppStoreHasHydrated,
+  useAppStoreHydrationActions,
   useAppStoreSqlState,
   useAppStoreTableConfigState,
-  useAppStoreTablePositionState,
 } from '../store/appStore';
+import { createTablePositionPersistence } from '../store/tablePositionPersistence';
+import { useTablePositionStore, useTablePositionStoreState } from '../store/tablePositionStore';
 import type {
   AmbiguousReference,
   DiagramViewport,
@@ -39,6 +42,7 @@ import { useDiagramCanvasModel } from '../features/diagram-canvas/useDiagramCanv
 import {
   useDiagramPresentation,
   type DiagramFocusDepth,
+  type DiagramPresentationNodeMembership,
   type DiagramPresentationMode,
   type DiagramPresentationStrategy,
 } from '../features/diagram-presentation/useDiagramPresentation';
@@ -174,12 +178,48 @@ function getActiveColumnsForRelationship(relationshipId: string | null, relation
   return active;
 }
 
+function areOrderedIdsEqual(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false;
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+
+  return true;
+}
+
+function buildPresentationMembershipKey(ids: string[]): string {
+  return ids.join('\u0000');
+}
+
+function useStablePresentationMembership(nodes: FlowNode[]): DiagramPresentationNodeMembership {
+  const membershipRef = useRef<DiagramPresentationNodeMembership | null>(null);
+
+  return useMemo(() => {
+    const ids = nodes.map((node) => node.id);
+    const previousMembership = membershipRef.current;
+
+    if (previousMembership && areOrderedIdsEqual(previousMembership.ids, ids)) return previousMembership;
+
+    const nextMembership = {
+      ids,
+      key: buildPresentationMembershipKey(ids),
+      count: ids.length,
+    } satisfies DiagramPresentationNodeMembership;
+
+    membershipRef.current = nextMembership;
+    return nextMembership;
+  }, [nodes]);
+}
+
 interface ERDAppProps {
   mode?: 'app' | 'benchmark';
 }
 
 export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   const hasHydrated = useAppStoreHasHydrated();
+  const hasStoreHydrated = useAppStoreHasStoreHydrated();
+  const { setHasHydrated } = useAppStoreHydrationActions();
   const { sqlText, setSqlText } = useAppStoreSqlState();
   const {
     theme,
@@ -208,7 +248,8 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     tablePositions,
     setTablePosition,
     resetTablePositions,
-  } = useAppStoreTablePositionState();
+    replaceTablePositions,
+  } = useTablePositionStoreState();
   const { activeViewTab, setActiveViewTab, diagramViewport, setDiagramViewport, panelSplit, setPanelSplit } =
     useERDAppSessionState();
 
@@ -259,6 +300,52 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   const reactFlowRef = useRef<ReactFlowInstance<FlowNode, Edge> | null>(null);
   const focusResetTimerRef = useRef<number | null>(null);
   const handledFocusViewportRequestRef = useRef(0);
+  const tablePositionPersistenceRef = useRef<ReturnType<typeof createTablePositionPersistence> | null>(null);
+
+  useEffect(() => {
+    if (!hasStoreHydrated || tablePositionPersistenceRef.current) return;
+
+    const tablePositionPersistence = createTablePositionPersistence();
+    tablePositionPersistenceRef.current = tablePositionPersistence;
+    replaceTablePositions(tablePositionPersistence.load());
+    setHasHydrated(true);
+
+    return () => {
+      tablePositionPersistence.dispose();
+      tablePositionPersistenceRef.current = null;
+    };
+  }, [hasStoreHydrated, replaceTablePositions, setHasHydrated]);
+
+  useEffect(() => {
+    const tablePositionPersistence = tablePositionPersistenceRef.current;
+    if (!hasHydrated || !tablePositionPersistence) return;
+
+    const flushTablePositions = () => {
+      tablePositionPersistence.flushNow();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushTablePositions();
+    };
+
+    window.addEventListener('beforeunload', flushTablePositions);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', flushTablePositions);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [hasHydrated]);
+
+  const commitTablePosition = useCallback((tableKey: string, position: { x: number; y: number }) => {
+    setTablePosition(tableKey, position);
+    tablePositionPersistenceRef.current?.schedule(useTablePositionStore.getState().tablePositions);
+  }, [setTablePosition]);
+
+  const clearTablePositions = useCallback(() => {
+    resetTablePositions();
+    tablePositionPersistenceRef.current?.schedule(useTablePositionStore.getState().tablePositions);
+  }, [resetTablePositions]);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -366,7 +453,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   }, [setTableConfig]);
   const { elkLayout, layoutMode, layoutPending, layoutWarning } = useAutoLayout({
     finishLayout,
-    isModelReady: isDiagramModelReady,
+    isModelReady: hasHydrated && isDiagramModelReady,
     layoutRevision,
     parseRunId,
     relationGrouping,
@@ -393,6 +480,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     tablePositions,
     theme,
   });
+  const presentationMembership = useStablePresentationMembership(nodes);
   const {
       activeFocusContext,
       activeFocusContextId,
@@ -428,7 +516,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     ambiguousFocusTableIds: focusedAmbiguousTables,
     edges,
     highlightedEdgeIds,
-    nodes,
+    membership: presentationMembership,
     previewTableId: previewTable,
     relationships: parsed.relationships,
     searchQuery: diagramSearch,
@@ -568,6 +656,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     clearDiagramSearchFocus();
   }, [clearDiagramSearchFocus, diagramSearch]);
   useEffect(() => {
+    if (!hasHydrated) return;
     if (!isDiagramModelReady) return;
     if (layoutPending) return;
     if (parsed.tables.length > 0 && nodes.length !== parsed.tables.length) return;
@@ -583,7 +672,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       window.cancelAnimationFrame(frameA);
       if (frameB) window.cancelAnimationFrame(frameB);
     };
-  }, [finalizeRun, isDiagramModelReady, layoutPending, nodes.length, parseRunId, parsed.tables.length]);
+  }, [finalizeRun, hasHydrated, isDiagramModelReady, layoutPending, nodes.length, parseRunId, parsed.tables.length]);
 
   const onConnect = useCallback((connection: Connection) => setEdges((eds) => addEdge(connection, eds)), [setEdges]);
   const onEdgeClick = useCallback((_: unknown, edge: Edge) => {
@@ -699,12 +788,12 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
         datasetVersion: dataset.version,
         trigger: 'dataset-load',
       };
-      resetTablePositions();
+      clearTablePositions();
       setSelected(null);
       setSelectedRelationshipId(null);
       setSqlText(dataset.sql);
     },
-    [resetTablePositions, setSqlText],
+    [clearTablePositions, setSqlText],
   );
 
   const rerunBenchmarkDataset = useCallback((presetId: BenchmarkDatasetPresetId) => {
@@ -718,11 +807,11 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       datasetVersion: dataset.version,
       trigger: 'manual-rerun',
     };
-    resetTablePositions();
+    clearTablePositions();
     setSelected(null);
     setSelectedRelationshipId(null);
     setBenchmarkRunRevision((current) => current + 1);
-  }, [resetTablePositions]);
+  }, [clearTablePositions]);
 
   const copyBenchmarkResults = useCallback(async () => {
     if (history.length === 0 || typeof navigator === 'undefined' || !navigator.clipboard) return;
@@ -784,7 +873,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       onEdgesChange={onEdgesChange}
       onFocusDiagramSearchResult={focusDiagramSearchResult}
       onNodeDragStart={(node) => handleNodeDragStart(node.id)}
-      onNodePositionCommit={(node) => setTablePosition(node.id, node.position)}
+      onNodePositionCommit={(node) => commitTablePosition(node.id, node.position)}
       onNodesChange={onNodesChange}
       onPaneClick={onPaneClick}
       onViewportChange={setSessionViewport}
@@ -1110,7 +1199,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
                 <span className="overlay-label">Acciones</span>
 
                 <button className="btn menu-item" onClick={() => {
-                  resetTablePositions();
+                  clearTablePositions();
                   requestGlobalRelayout();
                   setSelected(null);
                   setSelectedRelationshipId(null);

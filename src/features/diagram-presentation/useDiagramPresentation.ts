@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Edge, Node as FlowNode } from '@xyflow/react';
+import type { Edge } from '@xyflow/react';
 
 import type { Relationship } from '../../types/erd';
 
@@ -7,11 +7,17 @@ export type DiagramPresentationStrategy = 'normal' | 'large' | 'extreme';
 export type DiagramPresentationMode = 'full' | 'overview' | 'focus';
 export type DiagramFocusDepth = 0 | 1 | 2;
 
+export interface DiagramPresentationNodeMembership {
+  ids: string[];
+  key: string;
+  count: number;
+}
+
 interface UseDiagramPresentationInput {
   ambiguousFocusTableIds: Set<string>;
   edges: Edge[];
   highlightedEdgeIds: Set<string>;
-  nodes: FlowNode[];
+  membership: DiagramPresentationNodeMembership;
   previewTableId: string | null;
   relationships: Relationship[];
   searchQuery: string;
@@ -381,7 +387,7 @@ export function useDiagramPresentation({
   ambiguousFocusTableIds,
   edges,
   highlightedEdgeIds,
-  nodes,
+  membership,
   previewTableId,
   relationships,
   searchQuery,
@@ -396,10 +402,10 @@ export function useDiagramPresentation({
   const [manualActiveFocusContextId, setManualActiveFocusContextId] = useState<string | null>(null);
   const [focusViewportRequestToken, setFocusViewportRequestToken] = useState(0);
 
-  const allNodeIds = useMemo(() => new Set(nodes.map((node) => node.id)), [nodes]);
+  const allNodeIds = useMemo(() => new Set(membership.ids), [membership.ids, membership.key]);
   const currentAutomaticStrategy = useMemo(
-    () => getAutomaticStrategy(nodes.length, relationships.length),
-    [nodes.length, relationships.length],
+    () => getAutomaticStrategy(membership.count, relationships.length),
+    [membership.count, relationships.length],
   );
   const trimmedSearchQuery = searchQuery.trim();
   const searchMatchCount = searchResultTableIds.size;
