@@ -616,13 +616,19 @@ Aunque la UI ya sea más fluida, el costo de memoria puede seguir siendo un lím
 3. [ ] Propagar ese contrato al worker de layout y a las librerías de layout.
 4. [ ] Medir payload bytes, serialización y round-trip del worker en benchmark state transitorio.
 
+### Slice 2 — store/persistencia y churn de suscripción
+
+5. [ ] Sacar `panelSplit`, `activeViewTab` y `diagramViewport` del snapshot durable para dejar ese churn como estado de sesión.
+6. [ ] Reemplazar la suscripción amplia de `ERDApp.tsx` por selectores/hooks acotados del store durable.
+7. [ ] Validar que `sqlText`, `tablePositions`, `tableConfig` y preferencias durables mantengan continuidad tras reload.
+
 ### Slices posteriores — todavía pendientes
 
-5. [ ] Revisar shape del modelo parseado con budgets explícitos.
-6. [ ] Separar con más fuerza modelo de dominio, modelo de layout y modelo de render donde aparezca duplicación REAL.
-7. [ ] Reducir duplicación de strings/objetos en parser/render si la medición confirma que sigue pesando.
-8. [ ] Evaluar caché por SQL/hash/estructura.
-9. [ ] Evitar persistir estructuras gigantes en `localStorage` sin necesidad.
+8. [ ] Revisar shape del modelo parseado con budgets explícitos.
+9. [ ] Separar con más fuerza modelo de dominio, modelo de layout y modelo de render donde aparezca duplicación REAL.
+10. [ ] Reducir duplicación de strings/objetos en parser/render si la medición confirma que sigue pesando.
+11. [ ] Evaluar caché por SQL/hash/estructura.
+12. [ ] Evitar persistir estructuras gigantes en `localStorage` sin necesidad.
 
 ## Validación
 
@@ -633,7 +639,7 @@ Aunque la UI ya sea más fluida, el costo de memoria puede seguir siendo un lím
 ### Estado del slice actual
 
 - Slice 1 de Fase 5 se enfoca SOLO en compactar el payload de layout y medir el costo de transferencia antes de abrir cambios mayores en store o normalización del dominio.
-- Si la ganancia queda tapada por churn de store/render, eso se documenta como follow-up para slices posteriores, NO como excusa para agrandar el alcance ahora.
+- El siguiente slice acotado después del payload es store/persistencia: reducir churn de suscripción en `ERDApp.tsx` y sacar estado de sesión del snapshot durable, sin reabrir parser/layout/render.
 
 ## Criterio de salida
 

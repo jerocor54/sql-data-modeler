@@ -23,17 +23,6 @@ import {
 } from './buildDiagramCanvasGraph';
 import type { RoutedEdgeData, TableNodeData } from './diagramCanvasTypes';
 
-const DEFERRED_EDGE_REFINEMENT_DELAY_MS = 96;
-const MAX_DEFERRED_FULL_REFINEMENT_EDGES = 16;
-
-function shouldDeferFullEdgeRefinement(affectedEdgeCount: number, effectiveLineStyle: RelationLineStyle): boolean {
-  return (
-    effectiveLineStyle === 'orthogonal' &&
-    affectedEdgeCount > 0 &&
-    affectedEdgeCount <= MAX_DEFERRED_FULL_REFINEMENT_EDGES
-  );
-}
-
 function isTableNodeDataEqual(left: TableNodeData, right: TableNodeData): boolean {
   return (
     left.table === right.table &&
@@ -317,26 +306,10 @@ export function useDiagramCanvasModel({
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const previousGraphRef = useRef<DiagramCanvasGraphSnapshot | null>(null);
-  const deferredEdgeRefinementTimerRef = useRef<number | null>(null);
-  const deferredEdgeRefinementRevisionRef = useRef(0);
-
-  useEffect(
-    () => () => {
-      if (deferredEdgeRefinementTimerRef.current !== null) {
-        window.clearTimeout(deferredEdgeRefinementTimerRef.current);
-      }
-    },
-    [],
-  );
 
   const handleNodeDragStart = (tableKey: string) => {
     const affectedRelationshipIds = getAffectedRelationshipIds(parsed, [tableKey]);
     if (affectedRelationshipIds.size === 0) return;
-
-    if (deferredEdgeRefinementTimerRef.current !== null) {
-      window.clearTimeout(deferredEdgeRefinementTimerRef.current);
-      deferredEdgeRefinementTimerRef.current = null;
-    }
 
     setEdges((current) => {
       const nextEdges = patchEdgesForDraggingPreview(current, affectedRelationshipIds);
@@ -357,14 +330,6 @@ export function useDiagramCanvasModel({
 
   useEffect(() => {
     if (!elkLayout) return;
-
-    if (deferredEdgeRefinementTimerRef.current !== null) {
-      window.clearTimeout(deferredEdgeRefinementTimerRef.current);
-      deferredEdgeRefinementTimerRef.current = null;
-    }
-
-    deferredEdgeRefinementRevisionRef.current += 1;
-    const refinementRevision = deferredEdgeRefinementRevisionRef.current;
 
     const structureInputs: GraphStructureInputs = {
       effectiveLineStyle,
@@ -400,10 +365,6 @@ export function useDiagramCanvasModel({
     if (shouldIncrementallyPatch && previous) {
       const movedTableKeySet = new Set(movedTableKeys);
       const affectedRelationshipIds = getAffectedRelationshipIds(parsed, movedTableKeySet);
-      const shouldScheduleDeferredFullRefinement = shouldDeferFullEdgeRefinement(
-        affectedRelationshipIds.size,
-        effectiveLineStyle,
-      );
       const nextNodes = patchNodePositions(previous.graph.nodes, resolvedPositions);
       const seedEdges = previous.graph.edges.filter((edge) => !affectedRelationshipIds.has(edge.id));
       const nextAffectedEdges = buildDiagramCanvasEdges({
@@ -426,44 +387,6 @@ export function useDiagramCanvasModel({
         edges: nextEdges,
         nodes: nextNodes,
       };
-
-      if (shouldScheduleDeferredFullRefinement) {
-        deferredEdgeRefinementTimerRef.current = window.setTimeout(() => {
-          if (deferredEdgeRefinementRevisionRef.current !== refinementRevision) return;
-
-          const currentSnapshot = previousGraphRef.current;
-          if (!currentSnapshot || !areStructureInputsEqual(currentSnapshot.structureInputs, structureInputs)) return;
-
-          const refinementSeedEdges = currentSnapshot.graph.edges.filter((edge) => !affectedRelationshipIds.has(edge.id));
-          const refinedAffectedEdges = buildDiagramCanvasEdges({
-            effectiveLineStyle,
-            elkLayout,
-            globalTypeMode,
-            hasManualLayout,
-            linePattern,
-            parsed,
-            relationGrouping,
-            resolvedPositions,
-            routingMode: 'full',
-            renderRelationshipIds: affectedRelationshipIds,
-            seedEdges: refinementSeedEdges,
-            tableMap,
-          });
-
-          previousGraphRef.current = {
-            ...currentSnapshot,
-            graph: {
-              ...currentSnapshot.graph,
-              edges: patchAffectedEdges(currentSnapshot.graph.edges, refinedAffectedEdges, affectedRelationshipIds),
-            },
-          };
-
-          setEdges((current) => patchAffectedEdges(current, refinedAffectedEdges, affectedRelationshipIds));
-          deferredEdgeRefinementTimerRef.current = null;
-        }, DEFERRED_EDGE_REFINEMENT_DELAY_MS);
-      } else {
-        deferredEdgeRefinementTimerRef.current = null;
-      }
     } else {
       nextGraph = buildDiagramCanvasGraph({
         effectiveLineStyle,

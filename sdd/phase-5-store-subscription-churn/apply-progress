@@ -1,0 +1,37 @@
+## Implementation Progress
+
+**Change**: phase-5-store-subscription-churn
+**Mode**: Standard
+**Batch**: A+B+C+D(partial) (tasks 1.1-4.1)
+
+### Completed Tasks
+- [x] 1.1 Update `PERFORMANCE_OPTIMIZATION_PLAN.md` to record store/persistence churn as the bounded next slice after payload work.
+- [x] 1.2 Narrow `src/store/appStore.ts` so only durable workspace state/preferences persist; session-only UI keys were removed from the durable store shape.
+- [x] 1.3 Add selector-oriented store hooks for SQL, durable preferences, table config, table positions, and hydration reads used by `ERDApp.tsx`.
+- [x] 2.1 Create `src/components/useERDAppSessionState.ts` to own `panelSplit`, `activeViewTab`, and `diagramViewport` with default values and clamped split updates.
+- [x] 2.2 Refactor `src/components/ERDApp.tsx` to replace the whole-store subscription with selector hooks plus `useERDAppSessionState()`.
+- [x] 3.1 Keep `DiagramWorkspace` on root-owned session props/callbacks without widening ownership; existing prop contract remained sufficient once the root stopped reading those values from the durable store.
+- [x] 3.2 Keep `DiagramCanvasSurface` viewport restore / `onMoveEnd` wiring on root-owned session callbacks, avoiding persisted viewport writes.
+- [x] 4.1 Run `npx tsc --noEmit`.
+
+### Files Changed
+| File | Action | What Was Done |
+|------|--------|---------------|
+| `PERFORMANCE_OPTIMIZATION_PLAN.md` | Modified | Recorded the store/persistence churn slice as the next bounded Phase 5 step after payload work. |
+| `src/store/appStore.ts` | Modified | Removed session-only UI fields from durable state, narrowed `partialize`, and added selector-oriented store hooks. |
+| `src/components/useERDAppSessionState.ts` | Created | Added composition-root session state for tab, panel split, and viewport. |
+| `src/components/ERDApp.tsx` | Modified | Swapped full-store destructuring for bounded selectors and the new session hook. |
+| `openspec/changes/phase-5-store-subscription-churn/tasks.md` | Modified | Marked implementation and typecheck tasks complete; left manual validation tasks pending. |
+
+### Deviations from Design
+None — implementation matches design. `DiagramWorkspace.tsx` and `DiagramCanvasSurface.tsx` kept their existing prop contracts because they already accepted root-owned viewport callbacks; the ownership change happened at the root/session hook boundary rather than through a structural API rewrite.
+
+### Issues Found
+Interactive browser validation for tasks 4.2-4.3 was not executable in this CLI-only apply run, so those tasks remain pending.
+
+### Remaining Tasks
+- [ ] 4.2 Manual durable-state reload check for `sqlText`, `tablePositions`, `tableConfig`, and durable preferences.
+- [ ] 4.3 Manual session-reset + profiler check for panel/tab/viewport churn and narrowed persistence writes.
+
+### Status
+8/10 tasks complete. Ready for manual validation / verify once browser checks are recorded.

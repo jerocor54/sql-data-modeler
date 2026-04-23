@@ -14,7 +14,13 @@ import { toJpeg, toPng, toSvg } from 'html-to-image';
 import { DownloadCloud, Moon, MoreHorizontal, Sparkles, Sun } from 'lucide-react';
 
 import { downloadDataUrl } from '../lib/download';
-import { useAppStore } from '../store/appStore';
+import {
+  useAppStoreDurablePreferences,
+  useAppStoreHasHydrated,
+  useAppStoreSqlState,
+  useAppStoreTableConfigState,
+  useAppStoreTablePositionState,
+} from '../store/appStore';
 import type {
   AmbiguousReference,
   DiagramViewport,
@@ -50,6 +56,7 @@ import {
 } from '../features/performance/diagramPerformance';
 import DiagramWorkspace from './workspaces/DiagramWorkspace';
 import SqlEditorPanel from './SqlEditorPanel';
+import { useERDAppSessionState } from './useERDAppSessionState';
 
 const EXPORT_MIN_WIDTH = 1400;
 const EXPORT_MIN_HEIGHT = 900;
@@ -172,11 +179,10 @@ interface ERDAppProps {
 }
 
 export default function ERDApp({ mode = 'app' }: ERDAppProps) {
+  const hasHydrated = useAppStoreHasHydrated();
+  const { sqlText, setSqlText } = useAppStoreSqlState();
   const {
-    sqlText,
-    setSqlText,
     theme,
-    hasHydrated,
     setTheme,
     globalTypeMode,
     setGlobalTypeMode,
@@ -192,19 +198,19 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     setDialect,
     viewMode,
     setViewMode,
-    activeViewTab,
-    setActiveViewTab,
-    diagramViewport,
-    setDiagramViewport,
-    panelSplit,
-    setPanelSplit,
+  } = useAppStoreDurablePreferences();
+  const {
     tableConfig,
     setTableConfig,
     resetAllTableColorsToTheme,
+  } = useAppStoreTableConfigState();
+  const {
     tablePositions,
     setTablePosition,
     resetTablePositions,
-  } = useAppStore();
+  } = useAppStoreTablePositionState();
+  const { activeViewTab, setActiveViewTab, diagramViewport, setDiagramViewport, panelSplit, setPanelSplit } =
+    useERDAppSessionState();
 
   const isBenchmarkMode = mode === 'benchmark';
   const [benchmarkRunRevision, setBenchmarkRunRevision] = useState(0);
@@ -730,7 +736,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   }, [history]);
 
   const hasSavedDiagramViewport = Boolean(diagramViewport);
-  const setPersistedViewport = useCallback(
+  const setSessionViewport = useCallback(
     (viewport: Viewport | DiagramViewport) => {
       setDiagramViewport({
         x: viewport.x,
@@ -781,7 +787,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       onNodePositionCommit={(node) => setTablePosition(node.id, node.position)}
       onNodesChange={onNodesChange}
       onPaneClick={onPaneClick}
-      onViewportChange={setPersistedViewport}
+      onViewportChange={setSessionViewport}
       reactFlowRef={reactFlowRef}
       viewportPinnedNodeIds={viewportPinnedNodeIds}
     />

@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useShallow } from 'zustand/react/shallow';
 import type {
   Dialect,
-  DiagramViewport,
   Position,
   RelationGroupingMode,
   RelationLinePattern,
@@ -11,7 +11,6 @@ import type {
   TableVisualConfig,
   ThemeMode,
   TypeDisplayMode,
-  ViewTab,
   ViewMode,
 } from '../types/erd';
 
@@ -54,7 +53,7 @@ const DEFAULT_TABLE_CONFIG: TableVisualConfig = {
 
 const STORAGE_KEY = 'sql-data-modeler-store-v1';
 
-interface AppState {
+export interface AppState {
   sqlText: string;
   theme: ThemeMode;
   hasHydrated: boolean;
@@ -66,9 +65,6 @@ interface AppState {
   tableDesignTheme: TableDesignTheme;
   dialect: Dialect;
   viewMode: ViewMode;
-  activeViewTab: ViewTab;
-  diagramViewport: DiagramViewport | null;
-  panelSplit: number;
   tableConfig: Record<string, TableVisualConfig>;
   tablePositions: Record<string, Position>;
   setHasHydrated: (value: boolean) => void;
@@ -82,9 +78,6 @@ interface AppState {
   setTableDesignTheme: (theme: TableDesignTheme) => void;
   setDialect: (dialect: Dialect) => void;
   setViewMode: (mode: ViewMode) => void;
-  setActiveViewTab: (tab: ViewTab) => void;
-  setDiagramViewport: (viewport: DiagramViewport) => void;
-  setPanelSplit: (value: number) => void;
   setTableConfig: (tableKey: string, patch: Partial<TableVisualConfig>) => void;
   resetAllTableColorsToTheme: () => void;
   setTablePosition: (tableKey: string, position: Position) => void;
@@ -92,11 +85,26 @@ interface AppState {
   ensureTableConfig: (tableKey: string) => TableVisualConfig;
 }
 
-function readInitialViewPreferences(): Pick<AppState, 'viewMode' | 'activeViewTab'> {
+export type DurableAppState = Pick<
+  AppState,
+  | 'sqlText'
+  | 'theme'
+  | 'globalTypeMode'
+  | 'exportScale'
+  | 'lineStyle'
+  | 'linePattern'
+  | 'relationGrouping'
+  | 'tableDesignTheme'
+  | 'dialect'
+  | 'viewMode'
+  | 'tableConfig'
+  | 'tablePositions'
+>;
+
+function readInitialViewPreferences(): Pick<AppState, 'viewMode'> {
   if (typeof window === 'undefined') {
     return {
       viewMode: 'split',
-      activeViewTab: 'editor',
     };
   }
 
@@ -105,22 +113,18 @@ function readInitialViewPreferences(): Pick<AppState, 'viewMode' | 'activeViewTa
     if (!raw) {
       return {
         viewMode: 'split',
-        activeViewTab: 'editor',
       };
     }
 
     const parsed = JSON.parse(raw);
     const persistedViewMode = parsed?.state?.viewMode;
-    const persistedActiveViewTab = parsed?.state?.activeViewTab;
 
     return {
       viewMode: persistedViewMode === 'tabs' ? 'tabs' : 'split',
-      activeViewTab: persistedActiveViewTab === 'diagram' ? 'diagram' : 'editor',
     };
   } catch {
     return {
       viewMode: 'split',
-      activeViewTab: 'editor',
     };
   }
 }
@@ -141,9 +145,6 @@ export const useAppStore = create<AppState>()(
       tableDesignTheme: 'modern',
       dialect: 'auto',
       viewMode: initialViewPreferences.viewMode,
-      activeViewTab: initialViewPreferences.activeViewTab,
-      diagramViewport: null,
-      panelSplit: 42,
       tableConfig: {},
       tablePositions: {},
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
@@ -157,9 +158,6 @@ export const useAppStore = create<AppState>()(
       setTableDesignTheme: (tableDesignTheme) => set({ tableDesignTheme }),
       setDialect: (dialect) => set({ dialect }),
       setViewMode: (viewMode) => set({ viewMode }),
-      setActiveViewTab: (activeViewTab) => set({ activeViewTab }),
-      setDiagramViewport: (diagramViewport) => set({ diagramViewport }),
-      setPanelSplit: (panelSplit) => set({ panelSplit: Math.max(22, Math.min(78, panelSplit)) }),
       setTableConfig: (tableKey, patch) =>
         set((state) => ({
           tableConfig: {
@@ -214,12 +212,65 @@ export const useAppStore = create<AppState>()(
         tableDesignTheme: state.tableDesignTheme,
         dialect: state.dialect,
         viewMode: state.viewMode,
-        activeViewTab: state.activeViewTab,
-        diagramViewport: state.diagramViewport,
-        panelSplit: state.panelSplit,
         tableConfig: state.tableConfig,
         tablePositions: state.tablePositions,
       }),
     },
   ),
 );
+
+export function useAppStoreHasHydrated(): boolean {
+  return useAppStore((state) => state.hasHydrated);
+}
+
+export function useAppStoreSqlState() {
+  return useAppStore(
+    useShallow((state) => ({
+      sqlText: state.sqlText,
+      setSqlText: state.setSqlText,
+    })),
+  );
+}
+
+export function useAppStoreDurablePreferences() {
+  return useAppStore(
+    useShallow((state) => ({
+      theme: state.theme,
+      setTheme: state.setTheme,
+      globalTypeMode: state.globalTypeMode,
+      setGlobalTypeMode: state.setGlobalTypeMode,
+      exportScale: state.exportScale,
+      setExportScale: state.setExportScale,
+      linePattern: state.linePattern,
+      setLinePattern: state.setLinePattern,
+      relationGrouping: state.relationGrouping,
+      setRelationGrouping: state.setRelationGrouping,
+      tableDesignTheme: state.tableDesignTheme,
+      setTableDesignTheme: state.setTableDesignTheme,
+      dialect: state.dialect,
+      setDialect: state.setDialect,
+      viewMode: state.viewMode,
+      setViewMode: state.setViewMode,
+    })),
+  );
+}
+
+export function useAppStoreTableConfigState() {
+  return useAppStore(
+    useShallow((state) => ({
+      tableConfig: state.tableConfig,
+      setTableConfig: state.setTableConfig,
+      resetAllTableColorsToTheme: state.resetAllTableColorsToTheme,
+    })),
+  );
+}
+
+export function useAppStoreTablePositionState() {
+  return useAppStore(
+    useShallow((state) => ({
+      tablePositions: state.tablePositions,
+      setTablePosition: state.setTablePosition,
+      resetTablePositions: state.resetTablePositions,
+    })),
+  );
+}
