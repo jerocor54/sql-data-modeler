@@ -26,6 +26,18 @@ function formatBytes(value: number): string {
   return `${(value / 1024).toFixed(2)} KB`;
 }
 
+function formatLayoutDiagnostics(result: DiagramBenchmarkResult): string | null {
+  if (!result.layoutDiagnostics) return null;
+
+  const { cause, provenance } = result.layoutDiagnostics;
+  const parts = [`Causa: ${cause}`];
+
+  if (provenance?.stage) parts.push(`Stage: ${provenance.stage}`);
+  if (provenance?.message) parts.push(`Mensaje: ${provenance.message}`);
+
+  return parts.join(' · ');
+}
+
 export default function BenchmarkPanel({
   latestResult,
   history,
@@ -169,6 +181,20 @@ export default function BenchmarkPanel({
               </div>
             </div>
           )}
+          {latestResult.layoutDiagnostics && (
+            <div style={{ display: 'grid', gap: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+              <strong style={{ fontSize: 12 }}>Diagnóstico de fallback</strong>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, fontSize: 12 }}>
+                <div><span style={{ color: 'var(--text-muted)' }}>Causa</span><br />{latestResult.layoutDiagnostics.cause}</div>
+                {latestResult.layoutDiagnostics.provenance?.stage && (
+                  <div><span style={{ color: 'var(--text-muted)' }}>Stage</span><br />{latestResult.layoutDiagnostics.provenance.stage}</div>
+                )}
+                {latestResult.layoutDiagnostics.provenance?.message && (
+                  <div><span style={{ color: 'var(--text-muted)' }}>Mensaje</span><br />{latestResult.layoutDiagnostics.provenance.message}</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -208,10 +234,10 @@ export default function BenchmarkPanel({
                      <td style={{ padding: '6px 4px' }}>
                        {result.layoutMetrics?.roundTripMs != null ? formatDuration(result.layoutMetrics.roundTripMs) : '—'}
                      </td>
-                     <td style={{ padding: '6px 4px' }}>{formatDuration(result.totalMs)}</td>
-                     <td style={{ padding: '6px 4px' }}>{result.layoutEngine}</td>
-                   </tr>
-                ))}
+                      <td style={{ padding: '6px 4px' }}>{formatDuration(result.totalMs)}</td>
+                      <td style={{ padding: '6px 4px' }} title={formatLayoutDiagnostics(result) ?? undefined}>{result.layoutEngine}</td>
+                    </tr>
+                 ))}
               </tbody>
             </table>
           </div>

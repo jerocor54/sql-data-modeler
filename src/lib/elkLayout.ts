@@ -1,12 +1,20 @@
+import ElkBrowserApiModule from 'elkjs/lib/elk-api.js';
+import elkWorkerUrl from 'elkjs/lib/elk-worker.min.js?url';
+
 import { resolveHandlePair, type EdgeSide } from './edgeRouting';
 import { TABLE_NODE_WIDTH } from './diagramGeometry';
 import { createAutoLayout } from './layout';
 import type { Position, RelationGroupingMode } from '../types/erd';
 import type { LayoutGraphRelationship, LayoutGraphTable } from './layoutGraph';
 
-type ElkConstructor = new () => {
+type ElkApiInstance = {
   layout: (graph: unknown) => Promise<unknown>;
 };
+
+type ElkApiConstructor = new (args: {
+  workerFactory?: (url?: string) => { postMessage: (message: unknown, transfer?: Transferable[]) => void };
+  workerUrl?: string;
+}) => ElkApiInstance;
 
 type ElkPortSide = EdgeSide;
 
@@ -115,7 +123,7 @@ interface LayerRelaxationStats {
   adjacentEdgeCount: number;
 }
 
-let elkLoaderPromise: Promise<InstanceType<ElkConstructor>> | null = null;
+let elkLoaderPromise: Promise<ElkApiInstance> | null = null;
 
 const POSITION_GRID = 12;
 const LAYER_CLUSTER_THRESHOLD = 42;
@@ -126,13 +134,48 @@ const LAYER_CENTER_RELAXATION_ITERATIONS = 18;
 const ISOLATED_TABLE_HORIZONTAL_GAP = 96;
 const ISOLATED_TABLE_VERTICAL_GAP = 72;
 const ISOLATED_TABLE_COLUMN_HEIGHT_PADDING = 144;
+const ELK_API_MODULE_PATH = 'elkjs/lib/elk-api.js';
+const ELK_NODE_MODULE_PATH = 'elkjs/lib/main.js';
 
-async function getElkInstance(): Promise<InstanceType<ElkConstructor>> {
+function isConstructable(value: unknown): value is new (...args: never[]) => unknown {
+  return typeof value === 'function';
+}
+
+function resolveElkApiConstructor(module: unknown, modulePath: string): ElkApiConstructor {
+  const candidate =
+    typeof module === 'object' && module !== null && 'default' in module
+      ? (module as { default?: unknown }).default
+      : undefined;
+
+  if (!isConstructable(candidate)) {
+    throw new Error(`ELK bootstrap failed: ${modulePath} default export is not a constructable ELK API.`);
+  }
+
+  return candidate as ElkApiConstructor;
+}
+
+function isNodeRuntime(): boolean {
+  return typeof process !== 'undefined' && Boolean(process.versions?.node);
+}
+
+async function getElkInstance(): Promise<ElkApiInstance> {
   if (!elkLoaderPromise) {
-    elkLoaderPromise = import('elkjs/lib/elk.bundled.js').then((module) => {
-      const ELK = module.default as ElkConstructor;
-      return new ELK();
-    });
+    const nodeRuntime = isNodeRuntime();
+
+    elkLoaderPromise = (nodeRuntime ? import(ELK_NODE_MODULE_PATH) : Promise.resolve({ default: ElkBrowserApiModule }))
+      .then((elkModule) => {
+        if (nodeRuntime) {
+          const ELK = resolveElkApiConstructor(elkModule, ELK_NODE_MODULE_PATH);
+          return new ELK({});
+        }
+
+        const ELK = resolveElkApiConstructor(elkModule, ELK_API_MODULE_PATH);
+        return new ELK({ workerUrl: elkWorkerUrl });
+      })
+      .catch((error) => {
+        elkLoaderPromise = null;
+        throw error;
+      });
   }
 
   return elkLoaderPromise;

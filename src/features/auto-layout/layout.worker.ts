@@ -2,6 +2,7 @@ import { createElkLayout, createSafeFallbackLayout } from '../../lib/elkLayout';
 import {
   ELK_LAYOUT_TIMEOUT_MS,
   LAYOUT_WORKER_KIND,
+  type LayoutFallbackDiagnostics,
   type LayoutWorkerRequest,
   type LayoutWorkerResponse,
   type LayoutWorkerResult,
@@ -38,6 +39,8 @@ async function createLayoutResult(request: LayoutWorkerRequest): Promise<LayoutW
       preferences,
     );
 
+    const diagnostics = classifyFallbackDiagnostics(error, fallbackResult.mode === 'emergency');
+
     return {
       engine: 'fallback',
       layout: fallbackResult.layout,
@@ -50,8 +53,41 @@ async function createLayoutResult(request: LayoutWorkerRequest): Promise<LayoutW
           : error instanceof Error && error.message === 'ELK_LAYOUT_TIMEOUT'
             ? 'EL layout tardó demasiado; se activó el modo rápido de respaldo.'
             : 'ELK falló en este esquema; se activó el layout de respaldo para mantener la app operativa.',
+      diagnostics,
     };
   }
+}
+
+function classifyFallbackDiagnostics(error: unknown, emergencyFallback: boolean): LayoutFallbackDiagnostics {
+  const errorMessage = error instanceof Error ? error.message : undefined;
+
+  if (emergencyFallback) {
+    return {
+      cause: 'emergency-fallback',
+      provenance: {
+        stage: 'emergency-fallback',
+        message: errorMessage,
+      },
+    };
+  }
+
+  if (errorMessage === 'ELK_LAYOUT_TIMEOUT') {
+    return {
+      cause: 'timeout',
+      provenance: {
+        stage: 'elk-error',
+        message: errorMessage,
+      },
+    };
+  }
+
+  return {
+    cause: 'elk-failure',
+    provenance: {
+      stage: 'elk-error',
+      message: errorMessage,
+    },
+  };
 }
 
 workerScope.onmessage = (event: MessageEvent<LayoutWorkerRequest>) => {
@@ -78,6 +114,13 @@ workerScope.onmessage = (event: MessageEvent<LayoutWorkerRequest>) => {
         error: {
           code: 'LAYOUT_WORKER_ERROR',
           message: error instanceof Error ? error.message : 'Unexpected layout worker failure.',
+          diagnostics: {
+            cause: 'worker-failure',
+            provenance: {
+              stage: 'worker-start',
+              message: error instanceof Error ? error.message : undefined,
+            },
+          },
         },
       };
 

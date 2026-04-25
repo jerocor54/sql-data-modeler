@@ -12,13 +12,19 @@ import type {
 import type { DiagramBenchmarkLayoutEngine, DiagramBenchmarkLayoutMetrics } from '../performance/diagramPerformance';
 import LayoutWorker from './layout.worker?worker';
 import { createLayoutGraphModel } from './layoutModel';
-import { LAYOUT_WORKER_KIND, type LayoutWorkerRequest, type LayoutWorkerResponse } from './layoutWorkerProtocol';
+import {
+  LAYOUT_WORKER_KIND,
+  type LayoutFallbackDiagnostics,
+  type LayoutWorkerRequest,
+  type LayoutWorkerResponse,
+} from './layoutWorkerProtocol';
 
 interface UseAutoLayoutInput {
   finishLayout: (
     runId: number,
     layoutEngine: DiagramBenchmarkLayoutEngine,
     layoutMetrics?: DiagramBenchmarkLayoutMetrics,
+    layoutDiagnostics?: LayoutFallbackDiagnostics,
   ) => void;
   isModelReady: boolean;
   layoutRevision: number;
@@ -33,6 +39,18 @@ interface UseAutoLayoutInput {
 export type LayoutEngineMode = 'elk' | 'fallback';
 
 const payloadEncoder = new TextEncoder();
+
+function createWorkerFailureDiagnostics(message?: string): LayoutFallbackDiagnostics {
+  return {
+    cause: 'worker-failure',
+    provenance: message
+      ? {
+          stage: 'worker-start',
+          message,
+        }
+      : undefined,
+  };
+}
 
 export function useAutoLayout({
   finishLayout,
@@ -51,6 +69,7 @@ export function useAutoLayout({
   const [layoutMode, setLayoutMode] = useState<LayoutEngineMode>('elk');
   const [layoutWarning, setLayoutWarning] = useState('');
   const [layoutPending, setLayoutPending] = useState(false);
+  const [layoutDiagnostics, setLayoutDiagnostics] = useState<LayoutFallbackDiagnostics | null>(null);
 
   useEffect(() => {
     workerRef.current?.terminate();
@@ -61,6 +80,7 @@ export function useAutoLayout({
       setElkLayout({ positions: {}, edgePaths: {} });
       setLayoutMode('elk');
       setLayoutWarning('');
+      setLayoutDiagnostics(null);
       setLayoutPending(false);
       return;
     }
@@ -115,17 +135,21 @@ export function useAutoLayout({
       };
 
       if (response.status === 'success') {
-        finishLayout(parseRunId, response.result.engine, layoutMetrics);
+        finishLayout(parseRunId, response.result.engine, layoutMetrics, response.result.diagnostics);
         setElkLayout(response.result.layout);
         setLayoutMode(response.result.engine);
         setLayoutWarning(response.result.warning);
+        setLayoutDiagnostics(response.result.diagnostics ?? null);
         setLayoutPending(false);
         return;
       }
 
-      finishLayout(parseRunId, 'fallback', layoutMetrics);
+      const diagnostics = response.error.diagnostics ?? createWorkerFailureDiagnostics(response.error.message);
+
+      finishLayout(parseRunId, 'fallback', layoutMetrics, diagnostics);
       setLayoutMode('fallback');
       setLayoutWarning(response.error.message);
+      setLayoutDiagnostics(diagnostics);
       setLayoutPending(false);
     };
 
@@ -133,6 +157,7 @@ export function useAutoLayout({
       if (jobId !== activeJobIdRef.current) return;
 
       const roundTripMs = performance.now() - roundTripStart;
+      const diagnostics = createWorkerFailureDiagnostics('Unexpected layout worker failure.');
 
       finishLayout(parseRunId, 'fallback', {
         payloadBytes,
@@ -140,9 +165,10 @@ export function useAutoLayout({
         postMessageMs,
         roundTripMs,
         estimatedTransferMs: roundTripMs,
-      });
+      }, diagnostics);
       setLayoutMode('fallback');
       setLayoutWarning('Unexpected layout worker failure.');
+      setLayoutDiagnostics(diagnostics);
       setLayoutPending(false);
     };
 
@@ -161,5 +187,6 @@ export function useAutoLayout({
     layoutMode,
     layoutPending,
     layoutWarning,
+    layoutDiagnostics,
   };
 }

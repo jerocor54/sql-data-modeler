@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { LayoutWorkerMetrics } from '../../lib/layoutGraph';
 import type { ParseResult } from '../../types/erd';
+import type { LayoutFallbackDiagnostics } from '../auto-layout/layoutWorkerProtocol';
 
 export type DiagramBenchmarkTrigger = 'editor-change' | 'dataset-load' | 'manual-rerun';
 export type DiagramBenchmarkLayoutEngine = 'elk' | 'fallback';
@@ -21,6 +22,7 @@ export interface DiagramBenchmarkResult extends DiagramBenchmarkRunMeta {
   parseMs: number;
   layoutMs: number;
   layoutMetrics?: DiagramBenchmarkLayoutMetrics;
+  layoutDiagnostics?: LayoutFallbackDiagnostics;
   totalMs: number;
   layoutEngine: DiagramBenchmarkLayoutEngine;
   recordedAt: string;
@@ -31,6 +33,7 @@ interface DiagramBenchmarkRun extends DiagramBenchmarkRunMeta {
   parseMs: number;
   layoutMs: number;
   layoutMetrics?: DiagramBenchmarkLayoutMetrics;
+  layoutDiagnostics?: LayoutFallbackDiagnostics;
   layoutEngine: DiagramBenchmarkLayoutEngine;
   tableCount: number;
   relationshipCount: number;
@@ -76,6 +79,7 @@ export function useDiagramPerformance() {
       parseMs: 0,
       layoutMs: 0,
       layoutMetrics: undefined,
+      layoutDiagnostics: undefined,
       layoutEngine: 'elk',
       tableCount: 0,
       relationshipCount: 0,
@@ -107,6 +111,7 @@ export function useDiagramPerformance() {
     runId: number,
     layoutEngine: DiagramBenchmarkLayoutEngine,
     layoutMetrics?: DiagramBenchmarkLayoutMetrics,
+    layoutDiagnostics?: LayoutFallbackDiagnostics,
   ) => {
     const run = activeRunRef.current;
     if (!run || run.runId !== runId) return;
@@ -123,6 +128,7 @@ export function useDiagramPerformance() {
             layoutMetrics.estimatedTransferMs != null ? Number(layoutMetrics.estimatedTransferMs.toFixed(2)) : undefined,
         }
       : undefined;
+    run.layoutDiagnostics = layoutDiagnostics;
   }, []);
 
   const finalizeRun = useCallback((runId: number | null | undefined) => {
@@ -142,6 +148,7 @@ export function useDiagramPerformance() {
       parseMs: Number(run.parseMs.toFixed(2)),
       layoutMs: Number(run.layoutMs.toFixed(2)),
       layoutMetrics: run.layoutMetrics,
+      layoutDiagnostics: run.layoutDiagnostics,
       totalMs: Number(totalMs.toFixed(2)),
       layoutEngine: run.layoutEngine,
       recordedAt: new Date().toISOString(),

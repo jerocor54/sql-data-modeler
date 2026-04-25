@@ -110,6 +110,17 @@ function getFocusDepthBadge(depth: DiagramFocusDepth | null): string {
   return `Nivel ${depth}`;
 }
 
+function formatLayoutDiagnosticsTitle(
+  diagnostics: ReturnType<typeof useAutoLayout>['layoutDiagnostics'],
+): string | undefined {
+  if (!diagnostics) return undefined;
+
+  const parts = [`Causa: ${diagnostics.cause}`];
+  if (diagnostics.provenance?.stage) parts.push(`Stage: ${diagnostics.provenance.stage}`);
+  if (diagnostics.provenance?.message) parts.push(`Mensaje: ${diagnostics.provenance.message}`);
+  return parts.join(' · ');
+}
+
 function isKeyboardTypingContext(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null;
   return Boolean(element?.closest('input, textarea, select, [contenteditable="true"], .monaco-editor, .view-lines'));
@@ -451,7 +462,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   const handleTableStyleChange = useCallback((tableKey: string, patch: Partial<TableVisualConfig>) => {
     setTableConfig(tableKey, patch);
   }, [setTableConfig]);
-  const { elkLayout, layoutMode, layoutPending, layoutWarning } = useAutoLayout({
+  const { elkLayout, layoutMode, layoutPending, layoutWarning, layoutDiagnostics } = useAutoLayout({
     finishLayout,
     isModelReady: hasHydrated && isDiagramModelReady,
     layoutRevision,
@@ -925,6 +936,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
             {layoutMode === 'fallback' && layoutWarning && (
               <span
                 className="status-pill"
+                title={formatLayoutDiagnosticsTitle(layoutDiagnostics)}
                 style={{
                   color: '#f59e0b',
                   borderColor: 'color-mix(in srgb, #f59e0b 35%, var(--border))',
