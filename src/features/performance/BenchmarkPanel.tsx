@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  canBenchmarkDatasetRunInApp,
   createBenchmarkDataset,
   getBenchmarkDatasetPreset,
   isBenchmarkDatasetInteractiveSupported,
@@ -51,10 +52,24 @@ export default function BenchmarkPanel({
   const selectedDataset = useMemo(() => createBenchmarkDataset(selectedPresetId), [selectedPresetId]);
   const selectedPreset = useMemo(() => getBenchmarkDatasetPreset(selectedPresetId), [selectedPresetId]);
   const isInteractivePreset = selectedPreset.interactiveSupport === 'safe';
+  const isFallbackPreset = selectedPreset.interactiveSupport === 'fallback-only';
   const interactiveGuardMessage = useMemo(
-    () => `Los presets grandes (L/XL/XXL) quedan fuera de este smoke interactivo porque siguen siendo casos de estrés fuerte para canvas/browser. Corré benchmark:phase0 con --presets=${selectedPresetId} para medir parse + layout en modo controlado, y benchmark:phase3-canvas para contrastar presión de rerender por zoom.`,
-    [selectedPresetId],
+    () =>
+      isFallbackPreset
+        ? 'Preset M: hoy sirve para verificar el borde real de timeout/fallback. En la app no se considera interactivo-seguro sobre ELK; usalo como evidencia del contrato actual y apoyate en el diagnóstico de fallback o en la corrida CLI para medirlo con precisión.'
+        : `Los presets grandes (L/XL/XXL) quedan fuera de este smoke interactivo porque siguen siendo casos de estrés fuerte para canvas/browser. Corré benchmark:phase0 con --presets=${selectedPresetId} para medir parse + layout en modo controlado, y benchmark:phase3-canvas para contrastar presión de rerender por zoom.`,
+    [isFallbackPreset, selectedPresetId],
   );
+  const interactiveSupportLabel = isInteractivePreset
+    ? 'Interactivo seguro hoy (S)'
+    : isFallbackPreset
+      ? 'Timeout/fallback hoy (M)'
+      : 'Solo CLI / medición controlada (L+)';
+  const disabledActionTitle = !isInteractivePreset
+    ? isFallbackPreset
+      ? 'Preset M hoy marca el borde de timeout/fallback; no se ofrece como smoke interactivo seguro.'
+      : 'Disponible solo para el preset S en este smoke interactivo; L+ queda para medición controlada.'
+    : undefined;
 
   return (
     <section className="panel-card" style={{ padding: 12, display: 'grid', gap: 12 }}>
@@ -95,7 +110,7 @@ export default function BenchmarkPanel({
 
         <div style={{ display: 'grid', gap: 4, fontSize: 12 }}>
           <span style={{ color: 'var(--text-muted)' }}>Soporte interactivo</span>
-          <strong>{isInteractivePreset ? 'UI segura (S/M)' : 'Solo CLI / medición controlada'}</strong>
+          <strong>{interactiveSupportLabel}</strong>
         </div>
       </div>
 
@@ -113,7 +128,9 @@ export default function BenchmarkPanel({
             fontSize: 12,
           }}
         >
-          <strong style={{ color: 'var(--text)' }}>Preset no apto para correr desde la UI actual</strong>
+          <strong style={{ color: 'var(--text)' }}>
+            {isFallbackPreset ? 'Preset en territorio actual de timeout/fallback' : 'Preset no apto para correr desde la UI actual'}
+          </strong>
           <span style={{ color: 'var(--text-muted)' }}>{interactiveGuardMessage}</span>
           <code style={{ fontSize: 11, overflowX: 'auto' }}>npm run benchmark:phase0 -- --presets={selectedPresetId}</code>
         </div>
@@ -123,16 +140,16 @@ export default function BenchmarkPanel({
         <button
           className="btn btn-sm"
           onClick={() => onLoadDataset(selectedPresetId)}
-          disabled={!isBenchmarkDatasetInteractiveSupported(selectedPresetId)}
-          title={!isInteractivePreset ? 'Disponible solo para S/M en este smoke interactivo controlado.' : undefined}
+          disabled={!canBenchmarkDatasetRunInApp(selectedPresetId)}
+          title={disabledActionTitle}
         >
           Cargar dataset en la app
         </button>
         <button
           className="btn btn-sm btn-subtle"
           onClick={() => onRerunDataset(selectedPresetId)}
-          disabled={!isBenchmarkDatasetInteractiveSupported(selectedPresetId)}
-          title={!isInteractivePreset ? 'Disponible solo para S/M en este smoke interactivo controlado.' : undefined}
+          disabled={!canBenchmarkDatasetRunInApp(selectedPresetId)}
+          title={disabledActionTitle}
         >
           Repetir baseline actual
         </button>

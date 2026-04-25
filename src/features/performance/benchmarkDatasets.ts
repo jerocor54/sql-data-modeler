@@ -6,7 +6,7 @@ export interface BenchmarkDatasetPreset {
   version: string;
   tableCount: number;
   description: string;
-  interactiveSupport: 'safe' | 'controlled-only';
+  interactiveSupport: 'safe' | 'fallback-only' | 'controlled-only';
 }
 
 export interface BenchmarkDataset extends BenchmarkDatasetPreset {
@@ -21,7 +21,7 @@ const DATASET_PRESETS: BenchmarkDatasetPreset[] = [
     label: 'S',
     version: DATASET_VERSION,
     tableCount: 50,
-    description: 'Baseline chico para validar parse + layout sin estrés extremo.',
+    description: 'Baseline chico con soporte interactivo estable en ELK para validar parse + layout.',
     interactiveSupport: 'safe',
   },
   {
@@ -29,15 +29,15 @@ const DATASET_PRESETS: BenchmarkDatasetPreset[] = [
     label: 'M',
     version: DATASET_VERSION,
     tableCount: 200,
-    description: 'Escala media para detectar el primer salto real de costo.',
-    interactiveSupport: 'safe',
+    description: 'Escala media donde ELK hoy cruza el timeout in-app y cae en fallback; sirve para medir ese límite real.',
+    interactiveSupport: 'fallback-only',
   },
   {
     id: 'l',
     label: 'L',
     version: DATASET_VERSION,
     tableCount: 500,
-    description: 'Tamaño grande para exponer hotspots visibles de layout y render del canvas.',
+    description: 'Tamaño grande para estrés controlado y medición CLI del layout/canvas, no para smoke interactivo.',
     interactiveSupport: 'controlled-only',
   },
   {
@@ -45,7 +45,7 @@ const DATASET_PRESETS: BenchmarkDatasetPreset[] = [
     label: 'XL',
     version: DATASET_VERSION,
     tableCount: 1000,
-    description: 'Escala muy grande para medir el límite del baseline controlado y del canvas.',
+    description: 'Escala muy grande para medir el límite del baseline controlado y del canvas fuera de la UI interactiva.',
     interactiveSupport: 'controlled-only',
   },
   {
@@ -53,7 +53,7 @@ const DATASET_PRESETS: BenchmarkDatasetPreset[] = [
     label: 'XXL',
     version: DATASET_VERSION,
     tableCount: 3000,
-    description: 'Estrés extremo, generado on-demand para evitar inflar el repo con fixtures gigantes.',
+    description: 'Estrés extremo generado on-demand para medición controlada, sin promesa de soporte interactivo.',
     interactiveSupport: 'controlled-only',
   },
 ];
@@ -129,6 +129,10 @@ export function getBenchmarkDatasetPreset(id: BenchmarkDatasetPresetId): Benchma
 
 export function isBenchmarkDatasetInteractiveSupported(id: BenchmarkDatasetPresetId): boolean {
   return getBenchmarkDatasetPreset(id).interactiveSupport === 'safe';
+}
+
+export function canBenchmarkDatasetRunInApp(id: BenchmarkDatasetPresetId): boolean {
+  return getBenchmarkDatasetPreset(id).interactiveSupport !== 'controlled-only';
 }
 
 export function createBenchmarkDataset(id: BenchmarkDatasetPresetId): BenchmarkDataset {

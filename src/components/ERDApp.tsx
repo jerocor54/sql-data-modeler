@@ -49,8 +49,8 @@ import {
 import { useDiagramModel, type DiagramSearchResult } from '../features/parse-sql/useDiagramModel';
 import BenchmarkPanel from '../features/performance/BenchmarkPanel';
 import {
+  canBenchmarkDatasetRunInApp,
   createBenchmarkDataset,
-  isBenchmarkDatasetInteractiveSupported,
   type BenchmarkDatasetPresetId,
 } from '../features/performance/benchmarkDatasets';
 import {
@@ -789,7 +789,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   const previewData = parsed.tables.find((table) => table.key === previewTable) ?? null;
   const loadBenchmarkDataset = useCallback(
     (presetId: BenchmarkDatasetPresetId) => {
-      if (!isBenchmarkDatasetInteractiveSupported(presetId)) return;
+      if (!canBenchmarkDatasetRunInApp(presetId)) return;
 
       const dataset = createBenchmarkDataset(presetId);
 
@@ -808,7 +808,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   );
 
   const rerunBenchmarkDataset = useCallback((presetId: BenchmarkDatasetPresetId) => {
-    if (!isBenchmarkDatasetInteractiveSupported(presetId)) return;
+    if (!canBenchmarkDatasetRunInApp(presetId)) return;
 
     const dataset = createBenchmarkDataset(presetId);
 

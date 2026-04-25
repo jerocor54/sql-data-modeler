@@ -22,10 +22,10 @@ La Fase 0 ya no depende solo de clicks manuales en navegador:
 
 | Preset | Tablas | Relaciones | Notas |
 | --- | ---: | ---: | --- |
-| S | 50 | 78 | Smoke benchmark para validar instrumentación |
-| M | 200 | 326 | Primer tamaño donde el layout ya duele de verdad |
-| L | 500 | 824 | Escala donde ELK full deja de ser confiable en este baseline automatizado |
-| XL | 1000 | 1653 | Escala extrema previa a workers |
+| S | 50 | 78 | Smoke benchmark con soporte interactivo seguro sobre ELK |
+| M | 200 | 326 | Borde real actual: ELK cruza el timeout in-app y la app cae en fallback |
+| L | 500 | 824 | Escala para medición controlada/CLI; ELK full deja de ser confiable en este baseline automatizado |
+| XL | 1000 | 1653 | Escala extrema para medición controlada, no para smoke interactivo |
 | XXL | 3000 | 4969 | Estrés máximo; parse-only sí, ELK full no quedó viable en esta fase |
 
 ## Cómo correr el baseline automatizado
@@ -69,10 +69,12 @@ Sí mide algo útil y honesto para Fase 3: cuántas invalidaciones potenciales p
 1. Levantá la app local con `npm run dev`.
 2. Abrí `http://localhost:4321/benchmark`.
 3. Elegí un preset.
-4. Tocá **Cargar dataset en la app**.
-5. Esperá a que termine el layout y mirá la tarjeta **Última medición**.
-6. Si querés repetir exactamente el mismo caso, usá **Repetir baseline actual**.
-7. Si querés guardar resultados, usá **Copiar resultados JSON**.
+4. Si querés un smoke interactivo seguro, usá `S`.
+5. Si querés evidenciar el borde actual de soporte, seleccioná `M`: la referencia honesta es timeout/fallback, no soporte interactivo estable.
+6. Para `L+`, corré la medición por CLI/controlada en vez de la UI.
+7. Tocá **Cargar dataset en la app** o **Repetir baseline actual** solo cuando el preset esté habilitado.
+8. Esperá a que termine el layout y mirá la tarjeta **Última medición**.
+9. Si querés guardar resultados, usá **Copiar resultados JSON**.
 
 ## Definición honesta de “diagrama usable”
 
@@ -132,7 +134,8 @@ Son guardrails iniciales para detectar regresiones del baseline actual mientras 
 ## Lectura técnica honesta
 
 - El parser NO es el cuello principal en S ni M; el costo dominante ya es layout.
-- En `M`, ELK promedio queda en ~26.6 s. O sea: con el timeout actual de `2500 ms` de la app, ese preset ya está claramente fuera de rango.
+- El esquema real recuperado y el preset `S` sí completan en ELK hoy; ese es el baseline soportado de forma interactiva en esta rama.
+- En `M`, ELK promedio queda en ~26.6 s. O sea: con el timeout actual de `2500 ms` de la app, ese preset cruza el contrato vigente y cae en fallback. Eso describe el comportamiento esperado de hoy, NO una regresión nueva introducida por este slice.
 - En `L` y `XL`, el CLI full pega `Maximum call stack size exceeded` dentro de ELK antes de poder cerrar una corrida completa.
 - En `XXL`, parse-only sigue siendo reproducible (~7.94 s), pero ELK full no terminó ni en 5 minutos bajo esta estrategia automatizada.
 

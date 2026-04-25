@@ -238,7 +238,7 @@ Cada fase se ejecuta así:
 | 2 | Pipeline off-main-thread | **Cerrada** |
 | 3 | Estado, render y React Flow | **Cerrada con caveat menor** |
 | 4 | UX para modelos gigantes | **Cerrada en código con caveats de documentación** |
-| 5 | Memoria, cachés y payloads | **En curso — slice 1 (payload de layout)** |
+| 5 | Memoria, cachés y payloads | **En curso — slice de verdad del soporte (copy/documentación)** |
 | 6 | Astro shell, carga inicial y bundles | Pendiente |
 | 7 | Observabilidad y reglas anti-regresión | Pendiente |
 | 8 | Exportación escalable y cierre | Pendiente |
@@ -579,9 +579,9 @@ La UX ya está diseñada para escala extrema y no solo para modelos chicos.
 
 ### Estado real al arranque de Fase 5
 
-- La base de código YA absorbió la mayor parte de esta fase mediante overview/focus implícito, culling por viewport y refinamiento diferido de edges en `src/features/diagram-presentation/useDiagramPresentation.ts`, `src/features/diagram-canvas/DiagramCanvasSurface.tsx` y `src/features/diagram-canvas/useDiagramCanvasModel.ts`.
-- El documento estaba desfasado: decía “pendiente” aunque la implementación ya dejó la UX preparada para escalar bastante mejor.
-- Lo que queda abierto acá no es rehacer navegación desde cero, sino cerrar caveats de narrativa/validación cuando corresponda sin frenar el arranque de Fase 5.
+- La línea de base recuperada ya es más clara que cuando se abrió esta zona del plan: el esquema real volvió a completar sobre ELK, el preset `S` volvió a ser interactivo-seguro, y el preset `M` sigue cruzando `ELK_LAYOUT_TIMEOUT_MS` (`2500`) y cayendo en fallback.
+- El documento estaba desfasado porque seguía contando la historia de payload/store como slice activo mientras las superficies de soporte todavía sobreprometían `S/M` como si fueran equivalentes.
+- El slice vigente en esta rama es de verdad del soporte: alinear plan, benchmark metadata, copy y documentación con esa frontera verificada, SIN tocar runtime ni acelerar roadmap técnico.
 
 ---
 
@@ -611,10 +611,10 @@ Aunque la UI ya sea más fluida, el costo de memoria puede seguir siendo un lím
 
 ### Slice 1 — payload de layout y medición
 
-1. [x] Corregir la narrativa del plan para dejar explícito que Fase 4 quedó efectivamente cerrada en código.
-2. [x] Introducir un contrato compacto de layout (`tables`, `relationships`, `persistedPositions`) derivado dentro de `auto-layout`.
-3. [ ] Propagar ese contrato al worker de layout y a las librerías de layout.
-4. [ ] Medir payload bytes, serialización y round-trip del worker en benchmark state transitorio.
+1. [x] Registrar la verdad recuperada del baseline: esquema real soportado, preset `S` interactivo-seguro y preset `M` todavía en territorio de timeout/fallback.
+2. [x] Alinear el soporte publicado entre plan, benchmark datasets, benchmark UI y baseline docs sin cambiar contratos de ejecución.
+3. [x] Dejar explícito que este slice es SOLO de copy/documentación y que no reabre optimización de `M`, tuning de timeout ni cambios de layout/runtime.
+4. [ ] Recién después de cerrar esta verdad del soporte, decidir si existe un slice técnico separado para optimizar `M` o retomar payload/store.
 
 ### Slice 2 — persistencia acotada de `tablePositions`
 
@@ -639,9 +639,15 @@ Aunque la UI ya sea más fluida, el costo de memoria puede seguir siendo un lím
 
 ### Estado del slice actual
 
-- Slice 1 de Fase 5 se enfocó SOLO en compactar el payload de layout y medir el costo de transferencia antes de abrir cambios mayores en store o normalización del dominio.
-- El slice activo siguiente queda EXPLÍCITAMENTE acotado a `tablePositions`: sacar sus escrituras del snapshot persistido amplio, bajar churn síncrono de `localStorage` y preservar continuidad del layout manual vía una clave dedicada con fallback legacy.
-- Queda fuera de alcance reabrir payloads, parser, render, browser validation o una re-arquitectura general del store.
+- El slice activo actual es deliberadamente copy-only: documenta la verdad recuperada del soporte sin tocar `layout.worker.ts`, budgets, timeouts ni gating de runtime más allá de la metadata/copy necesaria para no mentir.
+- La frontera verificada de hoy es simple y tiene que repetirse igual en todas las superficies: esquema real soportado, `S` soportado sobre ELK, `M` en fallback por timeout hoy, `L+` solo para medición controlada.
+- Si el equipo quiere que `M` pase a soporte interactivo real, eso merece un slice técnico aparte con evidencia nueva; este cambio NO adelanta ese trabajo.
+
+### Qué NO hacer en este slice
+
+- [x] No optimizar preset `M` dentro de esta actualización de verdad del soporte.
+- [x] No tocar `ELK_LAYOUT_TIMEOUT_MS`, fallback contracts ni comportamiento del worker/layout.
+- [x] No reabrir payload tuning, parser/render/store refactors ni aceleración de roadmap por fuera de copy/documentación.
 
 ## Criterio de salida
 
