@@ -2,6 +2,7 @@ import type { LayoutFallbackDiagnostics } from '../auto-layout/layoutWorkerProto
 import type { LayoutEngineMode } from '../auto-layout/useAutoLayout';
 import type { DiagramPresentationMode, DiagramPresentationStrategy } from '../diagram-presentation/useDiagramPresentation';
 import type { DiagramBenchmarkResult } from './diagramPerformance';
+import { useLongTaskObserver } from './useLongTaskObserver';
 
 interface PerformanceOverlayProps {
   latestResult: DiagramBenchmarkResult | null;
@@ -29,6 +30,21 @@ function formatMs(value: number | null | undefined): string {
 
 function formatCount(value: number): string {
   return new Intl.NumberFormat('es-AR').format(value);
+}
+
+function formatOptionalMs(value: number | null): string {
+  return value == null ? '—' : formatMs(value);
+}
+
+function formatObservedAt(value: number | null): string {
+  if (value == null) return '—';
+
+  return new Date(value).toLocaleTimeString('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
 }
 
 function getPresentationModeLabel(mode: DiagramPresentationMode): string {
@@ -79,6 +95,7 @@ export default function PerformanceOverlay({
   totalNodeCount,
   viewMode,
 }: PerformanceOverlayProps) {
+  const longTasks = useLongTaskObserver();
   if (!import.meta.env.DEV) return null;
 
   const parseMs = latestResult?.parseMs ?? null;
@@ -142,6 +159,13 @@ export default function PerformanceOverlay({
             {formatDiagnostics(layoutDiagnostics)}
           </span>
         )}
+      </div>
+
+      <div style={{ display: 'grid', gap: 6, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+        <MetricRow label="long tasks" value={longTasks.supported ? formatCount(longTasks.count) : 'unsupported'} />
+        <MetricRow label="max long task" value={formatOptionalMs(longTasks.maxDuration)} />
+        <MetricRow label="last long task" value={formatOptionalMs(longTasks.lastDuration)} />
+        <MetricRow label="última captura" value={formatObservedAt(longTasks.lastObservedAt)} />
       </div>
     </aside>
   );

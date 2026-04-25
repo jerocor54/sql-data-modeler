@@ -734,7 +734,7 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
    - [x] nodos / edges
    - [x] modo activo
    - [x] tamaño del modelo
-3. Registrar long tasks. ⏳ Pendiente.
+3. Registrar long tasks. ✅ Cerrado en este slice con observación DEV-only degradable y resumen compacto en overlay.
 4. Registrar fallbacks activados. ✅ Cerrado en este slice con estado + diagnósticos visibles en overlay.
 5. Definir gates mínimos para no aceptar regresiones graves.
 
@@ -754,10 +754,10 @@ Este primer slice de Fase 7 deja resuelto SOLO lo siguiente:
 - overlay dev aislado bajo `src/features/performance/PerformanceOverlay.tsx`
 - métricas ya disponibles expuestas sin agregar persistencia nueva
 - visibilidad explícita de fallback/layout diagnostics cuando aparece degradación
+- instrumentación DEV-only de `long tasks` bajo `src/features/performance/` con degradación limpia cuando el navegador no lo soporta
 
 ### Pendiente real de Fase 7
 
-- instrumentación de `long tasks`
 - definición de gates anti-regresión verificables
 - criterio de comparación repetible más allá de la observabilidad manual en dev
 
