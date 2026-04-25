@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Editor, loader, type BeforeMount, type OnMount } from '@monaco-editor/react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, FolderOpen, MoreHorizontal, Save } from 'lucide-react';
 import { downloadTextFile, getCursorIndexForLine } from '../lib/download';
 import type { AmbiguousReference, Dialect, ThemeMode } from '../types/erd';
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+import { getEditorTheme } from './sql-editor/monacoTheme';
+import type { MonacoEditorInstance, MonacoInstance } from './sql-editor/SqlMonacoEditor';
+
+const LazySqlMonacoEditor = lazy(() => import('./sql-editor/SqlMonacoEditor'));
 
 interface SqlEditorPanelProps {
   sqlText: string;
@@ -20,12 +22,6 @@ interface SqlEditorPanelProps {
   themeReady: boolean;
 }
 
-function getEditorTheme(theme: ThemeMode): string {
-  if (theme === 'light') return 'vs';
-  if (theme === 'dark') return 'vs-dark';
-  return 'sql-deepblue';
-}
-
 function readDocumentTheme(): ThemeMode | null {
   if (typeof document === 'undefined') return null;
 
@@ -34,31 +30,7 @@ function readDocumentTheme(): ThemeMode | null {
   return null;
 }
 
-function defineEditorThemes(monaco: Parameters<OnMount>[1]) {
-  monaco.editor.defineTheme('sql-deepblue', {
-    base: 'vs-dark',
-    inherit: true,
-    rules: [
-      { token: 'keyword', foreground: '58A6FF' },
-      { token: 'number', foreground: '79C0FF' },
-      { token: 'string', foreground: 'A5D6FF' },
-      { token: 'comment', foreground: '7D97C6' },
-    ],
-    colors: {
-      'editor.background': '#0C1636',
-      'editor.foreground': '#D8E7FF',
-      'editorLineNumber.foreground': '#6B89BF',
-      'editorLineNumber.activeForeground': '#9FC2FF',
-      'editor.selectionBackground': '#2F64D966',
-      'editor.inactiveSelectionBackground': '#2F64D944',
-      'editorCursor.foreground': '#9BC3FF',
-      'editor.findMatchBackground': '#f59e0b55',
-      'editor.findMatchHighlightBackground': '#f59e0b33',
-    },
-  });
-}
-
-function getMonacoSelectionCharacterCount(editor: Parameters<OnMount>[0]): number {
+function getMonacoSelectionCharacterCount(editor: MonacoEditorInstance): number {
   const model = editor.getModel();
   if (!model) return 0;
 
@@ -91,8 +63,8 @@ export default function SqlEditorPanel({
   themeReady,
 }: SqlEditorPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
-  const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+  const editorRef = useRef<MonacoEditorInstance | null>(null);
+  const monacoRef = useRef<MonacoInstance | null>(null);
   const fallbackTextareaRef = useRef<HTMLTextAreaElement>(null);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const actionsTriggerRef = useRef<HTMLButtonElement>(null);
@@ -145,16 +117,10 @@ export default function SqlEditorPanel({
 
       try {
         setMonacoLoadState('loading');
-        self.MonacoEnvironment = {
-          getWorker() {
-            return new editorWorker();
-          },
-        };
-
-        const monaco = await import('monaco-editor');
+        const { ensureSqlMonacoRuntime } = await import('./sql-editor/SqlMonacoEditor');
         if (cancelled) return;
-        defineEditorThemes(monaco);
-        loader.config({ monaco });
+        await ensureSqlMonacoRuntime();
+        if (cancelled) return;
         setMonacoLoadState('ready');
       } catch {
         if (!cancelled) {
@@ -210,19 +176,14 @@ export default function SqlEditorPanel({
     return () => window.clearTimeout(timer);
   }, [editorReady, monacoLoadState]);
 
-  const onBeforeEditorMount: BeforeMount = (monaco) => {
-    defineEditorThemes(monaco);
-  };
-
-  const onEditorMount: OnMount = (editor, monaco) => {
+  const onEditorMount = useCallback((editor: MonacoEditorInstance, monaco: MonacoInstance) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
     setEditorReady(true);
     setMonacoLoadState('ready');
 
-    defineEditorThemes(monaco);
     monaco.editor.setTheme(getEditorTheme(resolvedTheme));
-  };
+  }, [resolvedTheme]);
 
   useEffect(() => {
     if (showTextareaEditor || !editorRef.current) {
@@ -491,36 +452,14 @@ export default function SqlEditorPanel({
             />
           </div>
         ) : (
-          <Editor
-            height="100%"
-            defaultLanguage="sql"
-            language="sql"
-            value={sqlText}
-            loading={<div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--text-muted)' }}>Cargando editor…</div>}
-            onChange={(value) => onSqlChange(value ?? '')}
-            beforeMount={onBeforeEditorMount}
-            onMount={onEditorMount}
-            theme={editorTheme}
-            options={{
-              automaticLayout: true,
-              minimap: { enabled: false },
-              scrollBeyondLastLine: false,
-              roundedSelection: false,
-              fontSize: 13,
-              lineHeight: 20,
-              fontFamily: 'JetBrains Mono, Fira Code, Menlo, Consolas, monospace',
-              tabSize: 2,
-              insertSpaces: true,
-              wordWrap: 'off',
-              smoothScrolling: true,
-              find: {
-                addExtraSpaceOnTop: false,
-                autoFindInSelection: 'never',
-                seedSearchStringFromSelection: 'always',
-                loop: true,
-              },
-            }}
-          />
+          <Suspense fallback={<div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--text-muted)' }}>Cargando editor…</div>}>
+            <LazySqlMonacoEditor
+              sqlText={sqlText}
+              resolvedTheme={resolvedTheme}
+              onSqlChange={onSqlChange}
+              onEditorMount={onEditorMount}
+            />
+          </Suspense>
         )}
       </div>
 

@@ -238,8 +238,8 @@ Cada fase se ejecuta así:
 | 2 | Pipeline off-main-thread | **Cerrada** |
 | 3 | Estado, render y React Flow | **Cerrada con caveat menor** |
 | 4 | UX para modelos gigantes | **Cerrada en código con caveats de documentación** |
-| 5 | Memoria, cachés y payloads | **En curso — slice de verdad del soporte (copy/documentación)** |
-| 6 | Astro shell, carga inicial y bundles | Pendiente |
+| 5 | Memoria, cachés y payloads | **Cerrada con follow-ups explícitos ya resueltos** |
+| 6 | Astro shell, carga inicial y bundles | **En curso — lazy-load real de benchmark/export + Monaco aplicado** |
 | 7 | Observabilidad y reglas anti-regresión | Pendiente |
 | 8 | Exportación escalable y cierre | Pendiente |
 
@@ -683,10 +683,19 @@ Aunque el dolor principal esté en modelos grandes, el arranque también debe ac
 ## Paso a paso
 
 1. Revisar si `client:load` sigue siendo la mejor decisión global.
+   - [x] Revisado para este slice: se mantiene `client:load` en la app principal porque editor + canvas siguen siendo críticos al primer render; todavía no hay evidencia para degradar el mount global sin romper UX.
 2. Lazy-load más agresivo de Monaco.
+   - [x] `@monaco-editor/react`, el worker de Monaco y su runtime pasan a un chunk bajo demanda: el arranque sigue mostrando textarea fallback y recién trae Monaco cuando hay warmup/idle o interacción explícita.
+   - [x] El split reutiliza el fallback ya existente, así que no cambia el contrato funcional del editor; solo corre el costo pesado fuera del bundle inicial.
 3. Lazy-load de export y módulos no críticos.
+   - [x] `html-to-image` pasa a import dinámico recién cuando el usuario exporta.
+   - [x] `BenchmarkPanel` sale del camino crítico principal con `React.lazy` + `Suspense`.
+   - [x] helpers de datasets/copia de benchmark se cargan bajo interacción benchmark en vez de viajar siempre con la app principal.
 4. Revisar split de bundles por intención.
+   - [x] Primer split honesto aplicado: benchmark/export quedan fuera del arranque principal.
+   - [ ] Pendiente revisar otros chunks secundarios (por ejemplo settings del menú de diagrama) sin convertir Astro en un shell decorativo ni inflar `ERDApp.tsx`.
 5. Mantener shell inicial mínima y clara.
+   - [x] Se mantiene Astro como shell fino (`index.astro`/`benchmark.astro` sin lógica nueva) y `AppRoot` sigue siendo un boundary delgado.
 
 ## Validación
 

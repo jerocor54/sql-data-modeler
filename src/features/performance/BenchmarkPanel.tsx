@@ -12,9 +12,9 @@ import type { DiagramBenchmarkResult } from './diagramPerformance';
 interface BenchmarkPanelProps {
   latestResult: DiagramBenchmarkResult | null;
   history: DiagramBenchmarkResult[];
-  onLoadDataset: (presetId: BenchmarkDatasetPresetId) => void;
-  onRerunDataset: (presetId: BenchmarkDatasetPresetId) => void;
-  onCopyResults: () => void;
+  onLoadDataset: (presetId: BenchmarkDatasetPresetId) => void | Promise<void>;
+  onRerunDataset: (presetId: BenchmarkDatasetPresetId) => void | Promise<void>;
+  onCopyResults: () => void | Promise<void>;
   onClearHistory: () => void;
 }
 

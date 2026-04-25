@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type ReactFlowInstance,
   type Viewport,
@@ -10,7 +10,6 @@ import {
   type Node as FlowNode,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { toJpeg, toPng, toSvg } from 'html-to-image';
 import { DownloadCloud, Moon, MoreHorizontal, Sparkles, Sun } from 'lucide-react';
 
 import { downloadDataUrl } from '../lib/download';
@@ -47,14 +46,8 @@ import {
   type DiagramPresentationStrategy,
 } from '../features/diagram-presentation/useDiagramPresentation';
 import { useDiagramModel, type DiagramSearchResult } from '../features/parse-sql/useDiagramModel';
-import BenchmarkPanel from '../features/performance/BenchmarkPanel';
+import type { BenchmarkDatasetPresetId } from '../features/performance/benchmarkDatasets';
 import {
-  canBenchmarkDatasetRunInApp,
-  createBenchmarkDataset,
-  type BenchmarkDatasetPresetId,
-} from '../features/performance/benchmarkDatasets';
-import {
-  serializeBenchmarkResults,
   useDiagramPerformance,
   type DiagramBenchmarkRunMeta,
 } from '../features/performance/diagramPerformance';
@@ -65,6 +58,14 @@ import { useERDAppSessionState } from './useERDAppSessionState';
 const EXPORT_MIN_WIDTH = 1400;
 const EXPORT_MIN_HEIGHT = 900;
 const EXPORT_PADDING = 120;
+const BenchmarkPanel = lazy(() => import('../features/performance/BenchmarkPanel'));
+
+let htmlToImageModulePromise: Promise<typeof import('html-to-image')> | null = null;
+
+async function loadHtmlToImageModule() {
+  htmlToImageModulePromise ??= import('html-to-image');
+  return htmlToImageModulePromise;
+}
 
 function formatExportLabel(format: 'svg' | 'png' | 'jpeg'): string {
   if (format === 'svg') return 'SVG';
@@ -703,6 +704,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       }
 
       try {
+        const { toJpeg, toPng, toSvg } = await loadHtmlToImageModule();
         const viewportEl = exportRef.current.querySelector('.react-flow__viewport') as HTMLElement | null;
         if (!viewportEl) return;
 
@@ -788,7 +790,8 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
 
   const previewData = parsed.tables.find((table) => table.key === previewTable) ?? null;
   const loadBenchmarkDataset = useCallback(
-    (presetId: BenchmarkDatasetPresetId) => {
+    async (presetId: BenchmarkDatasetPresetId) => {
+      const { canBenchmarkDatasetRunInApp, createBenchmarkDataset } = await import('../features/performance/benchmarkDatasets');
       if (!canBenchmarkDatasetRunInApp(presetId)) return;
 
       const dataset = createBenchmarkDataset(presetId);
@@ -807,7 +810,8 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     [clearTablePositions, setSqlText],
   );
 
-  const rerunBenchmarkDataset = useCallback((presetId: BenchmarkDatasetPresetId) => {
+  const rerunBenchmarkDataset = useCallback(async (presetId: BenchmarkDatasetPresetId) => {
+    const { canBenchmarkDatasetRunInApp, createBenchmarkDataset } = await import('../features/performance/benchmarkDatasets');
     if (!canBenchmarkDatasetRunInApp(presetId)) return;
 
     const dataset = createBenchmarkDataset(presetId);
@@ -828,6 +832,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     if (history.length === 0 || typeof navigator === 'undefined' || !navigator.clipboard) return;
 
     try {
+      const { serializeBenchmarkResults } = await import('../features/performance/diagramPerformance');
       await navigator.clipboard.writeText(serializeBenchmarkResults(history));
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -1271,14 +1276,25 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       </header>
 
       {isBenchmarkMode && (
-        <BenchmarkPanel
-          latestResult={latestResult}
-          history={history}
-          onLoadDataset={loadBenchmarkDataset}
-          onRerunDataset={rerunBenchmarkDataset}
-          onCopyResults={copyBenchmarkResults}
-          onClearHistory={clearHistory}
-        />
+        <Suspense
+          fallback={(
+            <section className="panel-card" style={{ padding: 12, display: 'grid', gap: 8 }}>
+              <strong style={{ fontSize: 14 }}>Baseline de performance · Fase 0</strong>
+              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                Cargando herramientas de benchmark…
+              </span>
+            </section>
+          )}
+        >
+          <BenchmarkPanel
+            latestResult={latestResult}
+            history={history}
+            onLoadDataset={loadBenchmarkDataset}
+            onRerunDataset={rerunBenchmarkDataset}
+            onCopyResults={copyBenchmarkResults}
+            onClearHistory={clearHistory}
+          />
+        </Suspense>
       )}
 
       {!hasHydrated ? (
