@@ -8,7 +8,7 @@ Define which app state MUST remain durable across reloads versus stay session-on
 
 ### Requirement: Preserve durable user-valued workspace state
 
-The system MUST persist durable state that users reasonably expect to survive reloads, including `sqlText`, manual layout state in `tablePositions`, table presentation state in `tableConfig`, and other existing durable preferences kept by this slice. `tablePositions` MUST remain durable through a dedicated persistence channel instead of the broad persisted app snapshot. The system MUST preserve current manual-layout durability semantics, reload continuity, and in-memory behavior for current consumers.
+The system MUST persist durable state that users reasonably expect to survive reloads, including `sqlText`, manual layout state in `tablePositions`, table presentation state in `tableConfig`, and other existing durable preferences kept by this slice. `tablePositions` MUST remain durable through a dedicated persistence channel instead of the broad persisted app snapshot. `tableConfig` MUST preserve user-authored overrides while allowing theme-default entries to be omitted from durable storage when omission preserves the same effective rendering. The system MUST preserve current manual-layout durability semantics, reload continuity, and in-memory behavior for current consumers.
 
 #### Scenario: Restore durable manual workspace state
 
@@ -22,6 +22,13 @@ The system MUST persist durable state that users reasonably expect to survive re
 - GIVEN a persisted key provides user-valued continuity across sessions
 - WHEN this slice narrows persistence boundaries
 - THEN that key remains persisted unless the change explicitly documents an exemption
+
+#### Scenario: Omit default table presentation entries without losing user intent
+
+- GIVEN a table has no custom visual override and therefore uses the active theme defaults
+- WHEN the durable snapshot is written
+- THEN that table does not need a dedicated `tableConfig` entry in storage
+- AND reload still resolves the same effective theme-default rendering
 
 ### Requirement: Exclude session-only and derived churn from durable persistence
 

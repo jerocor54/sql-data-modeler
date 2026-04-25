@@ -626,10 +626,10 @@ Aunque la UI ya sea más fluida, el costo de memoria puede seguir siendo un lím
 ### Slices posteriores — todavía pendientes
 
 9. [ ] Revisar shape del modelo parseado con budgets explícitos.
-10. [ ] Separar con más fuerza modelo de dominio, modelo de layout y modelo de render donde aparezca duplicación REAL.
+10. [x] Separar con más fuerza modelo de dominio, modelo de layout y modelo de render donde aparezca duplicación REAL.
 11. [ ] Reducir duplicación de strings/objetos en parser/render si la medición confirma que sigue pesando.
 12. [ ] Evaluar caché por SQL/hash/estructura.
-13. [ ] Evitar persistir estructuras gigantes en `localStorage` sin necesidad.
+13. [x] Evitar persistir estructuras gigantes en `localStorage` sin necesidad.
 
 ## Validación
 
@@ -641,6 +641,9 @@ Aunque la UI ya sea más fluida, el costo de memoria puede seguir siendo un lím
 
 - La verdad recuperada del soporte ya quedó cerrada y pusheada: esquema real soportado, `S` soportado sobre ELK, `M` en fallback por timeout hoy, `L+` solo para medición controlada.
 - La continuidad inmediata de Fase 5 fue cerrar la validación parcial de persistencia de `tablePositions`: se confirmó el canal dedicado, la exclusión del snapshot amplio, la restauración tras reload, la migración desde legacy y el fail-safe ante payload dedicado corrupto.
+- La duplicación REAL confirmada en el wiring actual apareció en el armado del canvas: `useDiagramCanvasModel` resolvía posiciones y `buildDiagramCanvasGraph` las volvía a materializar. Ese seam quedó separado para reutilizar `resolvedPositions` en la rama full y evitar ese churn extra sin reabrir parser/layout.
+- El snapshot durable ahora evita persistir overrides visuales redundantes: `tableConfig` guarda solo personalizaciones reales y un reset a defaults limpia el mapa en vez de dejar una estructura grande con entradas equivalentes al tema activo.
+- La revisión de parser/cache quedó deliberadamente honesta: hoy no apareció evidencia suficiente para cerrar budgets explícitos del modelo parseado, reducción adicional de strings/objetos o caché por SQL/hash/estructura sin antes medir mejor esa zona.
 - Si el equipo quiere que `M` pase a soporte interactivo real, eso merece un slice técnico aparte con evidencia nueva; la continuidad actual NO adelanta ese trabajo.
 
 ### Qué NO hacer en este slice

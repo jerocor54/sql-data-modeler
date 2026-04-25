@@ -668,6 +668,21 @@ export interface BuildDiagramCanvasGraphInput extends DiagramNodeHandlers {
   theme: ThemeMode;
 }
 
+export interface BuildDiagramCanvasGraphFromResolvedPositionsInput extends DiagramNodeHandlers {
+  effectiveLineStyle: RelationLineStyle;
+  elkLayout: ElkLayoutResult;
+  globalTypeMode: TypeDisplayMode;
+  hasManualLayout: boolean;
+  linePattern: RelationLinePattern;
+  parsed: ParseResult;
+  relationGrouping: RelationGroupingMode;
+  resolvedPositions: Record<string, Position | DiagramViewport>;
+  tableConfig: Record<string, TableVisualConfig>;
+  tableMap: Map<string, TableModel>;
+  tableDesignTheme: TableDesignTheme;
+  theme: ThemeMode;
+}
+
 export interface DiagramCanvasGraph {
   edges: Edge[];
   nodes: FlowNode[];
@@ -1047,6 +1062,44 @@ export function buildDiagramCanvasGraph({
   theme,
 }: BuildDiagramCanvasGraphInput): DiagramCanvasGraph {
   const resolvedPositions = resolveDiagramTablePositions(parsed, elkLayout, tablePositions);
+  return buildDiagramCanvasGraphFromResolvedPositions({
+    effectiveLineStyle,
+    elkLayout,
+    globalTypeMode,
+    hasManualLayout,
+    linePattern,
+    onColumnSelect,
+    onGoToSql,
+    onPreview,
+    onTableStyleChange,
+    parsed,
+    relationGrouping,
+    resolvedPositions,
+    tableConfig,
+    tableMap,
+    tableDesignTheme,
+    theme,
+  });
+}
+
+export function buildDiagramCanvasGraphFromResolvedPositions({
+  effectiveLineStyle,
+  elkLayout,
+  globalTypeMode,
+  hasManualLayout,
+  linePattern,
+  onColumnSelect,
+  onGoToSql,
+  onPreview,
+  onTableStyleChange,
+  parsed,
+  relationGrouping,
+  resolvedPositions,
+  tableConfig,
+  tableMap,
+  tableDesignTheme,
+  theme,
+}: BuildDiagramCanvasGraphFromResolvedPositionsInput): DiagramCanvasGraph {
   const nodes = buildDiagramCanvasNodes({
     globalTypeMode,
     onColumnSelect,

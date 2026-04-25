@@ -17,7 +17,7 @@ import type {
 } from '../../types/erd';
 import {
   buildDiagramCanvasEdges,
-  buildDiagramCanvasGraph,
+  buildDiagramCanvasGraphFromResolvedPositions,
   resolveDiagramTablePositions,
   type DiagramCanvasGraph,
 } from './buildDiagramCanvasGraph';
@@ -388,7 +388,7 @@ export function useDiagramCanvasModel({
         nodes: nextNodes,
       };
     } else {
-      nextGraph = buildDiagramCanvasGraph({
+      nextGraph = buildDiagramCanvasGraphFromResolvedPositions({
         effectiveLineStyle,
         elkLayout,
         globalTypeMode,
@@ -400,10 +400,10 @@ export function useDiagramCanvasModel({
         onTableStyleChange,
         parsed,
         relationGrouping,
+        resolvedPositions,
         tableConfig,
         tableMap,
         tableDesignTheme,
-        tablePositions,
         theme,
       });
     }

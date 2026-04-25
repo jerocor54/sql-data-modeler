@@ -51,6 +51,11 @@ const DEFAULT_TABLE_CONFIG: TableVisualConfig = {
   useThemeDefaults: true,
 };
 
+const LEGACY_DEFAULT_TABLE_CONFIG_COLORS = {
+  bgColor: '#1E293B',
+  textColor: '#E2E8F0',
+};
+
 const STORAGE_KEY = 'sql-data-modeler-store-v1';
 type LegacyTablePositionSnapshot = Record<string, Position>;
 
@@ -145,6 +150,22 @@ export type DurableAppState = Pick<
   | 'tableConfig'
 >;
 
+function shouldPersistTableConfig(config: TableVisualConfig): boolean {
+  if (config.useThemeDefaults === true) return false;
+
+  const matchesLegacyThemeDefaultColors =
+    config.bgColor === LEGACY_DEFAULT_TABLE_CONFIG_COLORS.bgColor &&
+    config.textColor === LEGACY_DEFAULT_TABLE_CONFIG_COLORS.textColor;
+
+  return !(config.useThemeDefaults !== false && matchesLegacyThemeDefaultColors);
+}
+
+function compactTableConfigSnapshot(tableConfig: Record<string, TableVisualConfig>): Record<string, TableVisualConfig> {
+  return Object.fromEntries(
+    Object.entries(tableConfig).filter(([, config]) => shouldPersistTableConfig(config)),
+  );
+}
+
 function readInitialViewPreferences(): Pick<AppState, 'viewMode'> {
   if (typeof window === 'undefined') {
     return {
@@ -204,32 +225,36 @@ export const useAppStore = create<AppState>()(
       setDialect: (dialect) => set({ dialect }),
       setViewMode: (viewMode) => set({ viewMode }),
       setTableConfig: (tableKey, patch) =>
-        set((state) => ({
-          tableConfig: {
-            ...state.tableConfig,
-            [tableKey]: {
-              ...DEFAULT_TABLE_CONFIG,
-              ...(state.tableConfig[tableKey] ?? {}),
-              ...patch,
+        set((state) => {
+          const nextConfig = {
+            ...DEFAULT_TABLE_CONFIG,
+            ...(state.tableConfig[tableKey] ?? {}),
+            ...patch,
+          } satisfies TableVisualConfig;
+
+          if (!shouldPersistTableConfig(nextConfig)) {
+            if (!(tableKey in state.tableConfig)) return state;
+
+            const nextTableConfig = { ...state.tableConfig };
+            delete nextTableConfig[tableKey];
+            return { tableConfig: nextTableConfig };
+          }
+
+          return {
+            tableConfig: {
+              ...state.tableConfig,
+              [tableKey]: nextConfig,
             },
-          },
-        })),
+          };
+        }),
       resetAllTableColorsToTheme: () =>
-        set((state) => ({
-          tableConfig: Object.fromEntries(
-            Object.entries(state.tableConfig).map(([tableKey, config]) => [
-              tableKey,
-              {
-                ...config,
-                useThemeDefaults: true,
-              },
-            ]),
-          ),
-        })),
+        set((state) => {
+          if (Object.keys(state.tableConfig).length === 0) return state;
+          return { tableConfig: {} };
+        }),
       ensureTableConfig: (tableKey) => {
         const existing = get().tableConfig[tableKey];
         if (existing) return existing;
-        get().setTableConfig(tableKey, DEFAULT_TABLE_CONFIG);
         return DEFAULT_TABLE_CONFIG;
       },
     }),
@@ -249,7 +274,7 @@ export const useAppStore = create<AppState>()(
         tableDesignTheme: state.tableDesignTheme,
         dialect: state.dialect,
         viewMode: state.viewMode,
-        tableConfig: state.tableConfig,
+        tableConfig: compactTableConfigSnapshot(state.tableConfig),
       }),
     },
   ),
