@@ -51,6 +51,7 @@ import {
   useDiagramPerformance,
   type DiagramBenchmarkRunMeta,
 } from '../features/performance/diagramPerformance';
+import PerformanceOverlay from '../features/performance/PerformanceOverlay';
 import DiagramWorkspace from './workspaces/DiagramWorkspace';
 import SqlEditorPanel from './SqlEditorPanel';
 import { useERDAppSessionState } from './useERDAppSessionState';
@@ -1443,6 +1444,25 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
           </div>
         </div>
       )}
+
+      <PerformanceOverlay
+        latestResult={latestResult}
+        layoutDiagnostics={layoutDiagnostics}
+        layoutMode={layoutMode}
+        layoutPending={layoutPending}
+        layoutWarning={layoutWarning}
+        presentationIsAutomatic={isDiagramPresentationAutomatic}
+        presentationMode={diagramPresentationMode}
+        presentationStrategy={currentAutomaticStrategy}
+        presentedEdgeCount={presentedEdges.length}
+        presentedNodeCount={presentedNodes.length}
+        relationshipCount={parsed.relationships.length}
+        sqlTextLength={sqlText.length}
+        tableCount={parsed.tables.length}
+        totalEdgeCount={edges.length}
+        totalNodeCount={nodes.length}
+        viewMode={viewMode}
+      />
     </main>
   );
 }

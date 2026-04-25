@@ -240,7 +240,7 @@ Cada fase se ejecuta así:
 | 4 | UX para modelos gigantes | **Cerrada en código con caveats de documentación** |
 | 5 | Memoria, cachés y payloads | **Cerrada con follow-ups explícitos ya resueltos** |
 | 6 | Astro shell, carga inicial y bundles | **En curso — lazy-load real de benchmark/export + Monaco aplicado** |
-| 7 | Observabilidad y reglas anti-regresión | Pendiente |
+| 7 | Observabilidad y reglas anti-regresión | En curso — overlay dev base + fallback visibility cerrados |
 | 8 | Exportación escalable y cierre | Pendiente |
 
 ---
@@ -726,26 +726,40 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
 
 ## Paso a paso
 
-1. Crear overlay o panel dev de performance.
+1. Crear overlay o panel dev de performance. ✅ Cerrado en este slice con overlay dev no persistido.
 2. Mostrar:
-   - [ ] parse ms
-   - [ ] layout ms
-   - [ ] render ms aproximado
-   - [ ] nodos / edges
-   - [ ] modo activo
-   - [ ] tamaño del modelo
-3. Registrar long tasks.
-4. Registrar fallbacks activados.
+   - [x] parse ms
+   - [x] layout ms
+   - [x] render ms aproximado
+   - [x] nodos / edges
+   - [x] modo activo
+   - [x] tamaño del modelo
+3. Registrar long tasks. ⏳ Pendiente.
+4. Registrar fallbacks activados. ✅ Cerrado en este slice con estado + diagnósticos visibles en overlay.
 5. Definir gates mínimos para no aceptar regresiones graves.
 
 ## Validación
 
-- [ ] ya no dependemos solo de percepción subjetiva
-- [ ] podemos comparar antes/después con criterio
+- [x] ya no dependemos solo de percepción subjetiva para parse/layout/render/nodos/edges/modo/fallback en desarrollo.
+- [ ] podemos comparar antes/después con criterio formal y gates repetibles.
 
 ## Criterio de salida
 
 La performance ya está gobernada y monitoreada.
+
+### Slice honesto cerrado ahora
+
+Este primer slice de Fase 7 deja resuelto SOLO lo siguiente:
+
+- overlay dev aislado bajo `src/features/performance/PerformanceOverlay.tsx`
+- métricas ya disponibles expuestas sin agregar persistencia nueva
+- visibilidad explícita de fallback/layout diagnostics cuando aparece degradación
+
+### Pendiente real de Fase 7
+
+- instrumentación de `long tasks`
+- definición de gates anti-regresión verificables
+- criterio de comparación repetible más allá de la observabilidad manual en dev
 
 ---
 
