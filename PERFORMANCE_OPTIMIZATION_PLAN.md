@@ -736,12 +736,13 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
    - [x] tamaño del modelo
 3. Registrar long tasks. ✅ Cerrado en este slice con observación DEV-only degradable y resumen compacto en overlay.
 4. Registrar fallbacks activados. ✅ Cerrado en este slice con estado + diagnósticos visibles en overlay.
-5. Definir gates mínimos para no aceptar regresiones graves.
+5. Definir gates mínimos para no aceptar regresiones graves. ◑ Slice honesto actual: gate CLI sobre baseline versionado; browser-backed gates siguen pendientes.
 
 ## Validación
 
 - [x] ya no dependemos solo de percepción subjetiva para parse/layout/render/nodos/edges/modo/fallback en desarrollo.
-- [ ] podemos comparar antes/después con criterio formal y gates repetibles.
+- [x] ya existe un gate formal y repetible para la evidencia CLI del baseline versionado.
+- [ ] seguimos sin gates browser-backed para UX/FPS/overlay real.
 
 ## Criterio de salida
 
@@ -758,8 +759,17 @@ Este primer slice de Fase 7 deja resuelto SOLO lo siguiente:
 
 ### Pendiente real de Fase 7
 
-- definición de gates anti-regresión verificables
-- criterio de comparación repetible más allá de la observabilidad manual en dev
+- extender los gates desde la evidencia CLI hacia `/benchmark` y browser real sin caer en teatro
+- cubrir UX/FPS/overlay con un harness browser-backed honesto
+- ampliar el criterio de comparación repetible más allá de la evidencia CLI versionada
+
+### Slice honesto adicional cerrado ahora
+
+Además del overlay dev ya entregado, ahora queda resuelto ESTE pedazo puntual de Fase 7:
+
+- `scripts/performance/assertPhase0Baseline.ts` valida la shape de JSON y los budgets/documented truth del baseline CLI
+- `npm run benchmark:phase0:assert` deja un gate repetible para `S`/`M` y para los límites honestos de `L`/`XL`/`XXL`
+- el gate NO finge cobertura de browser/UX; solo endurece lo que hoy sí tiene evidencia versionada
 
 ---
 

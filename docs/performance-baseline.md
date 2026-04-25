@@ -14,6 +14,7 @@ La Fase 0 ya no depende solo de clicks manuales en navegador:
 - `src/features/performance/BenchmarkPanel.tsx` — UI explícita para baseline manual
 - `src/pages/benchmark.astro` — ruta dedicada para benchmark manual
 - `scripts/performance/runPhase0Baseline.ts` — CLI reproducible para baseline automatizado
+- `scripts/performance/assertPhase0Baseline.ts` — gate CLI anti-regresión para validar budgets y bordes honestos del baseline
 - `scripts/performance/runPhase3CanvasSmoke.ts` — smoke controlado para estimar presión de rerender por zoom en Fase 3
 - `docs/performance-baseline-results.phase-0.full.json` — corrida base full (parse + ELK) para S/M y evidencia de falla en L/XL
 - `docs/performance-baseline-results.phase-0.parse-only.json` — corrida base parse-only para S/M/L/XL/XXL
@@ -53,6 +54,21 @@ Esto mide:
 - parse time
 - total CPU de parse-only
 - cantidad de tablas y relaciones
+
+### Gate CLI anti-regresión — evidencia formal disponible hoy
+
+```bash
+npm run benchmark:phase0:assert
+```
+
+Este gate valida SOLO lo que hoy está respaldado por evidencia CLI/documentada:
+
+- shape mínima de los JSON estructurados (`full` y `parse-only`)
+- budgets documentados para `S`/`M` en full y parse budgets para `S/M/L/XL/XXL`
+- verdad actual de soporte: `M` sigue marcado como `appLayoutTimeoutExceeded=true`
+- verdad actual de falla controlada: `L` y `XL` siguen cayendo con `Maximum call stack size exceeded` en full
+
+No inventa gates de UX/browser. Eso sigue pendiente hasta tener un harness de navegador honesto.
 
 ### Smoke de canvas — presión de rerender por zoom
 
@@ -145,6 +161,7 @@ Son guardrails iniciales para detectar regresiones del baseline actual mientras 
 - La primera tanda documentada acá está tomada en Node, no en browser real.
 - Esta fase NO cubre todavía memoria, FPS, latencia de edición ni bloqueo fino del main thread.
 - Los datasets siguen siendo sintéticos: excelentes para comparar regresiones, no para representar todos los esquemas reales.
+- El gate formal actual cubre evidencia CLI/versionada; la validación browser-backed sigue pendiente.
 
 ## Slice de validación pendiente: Phase 5 next slice
 
