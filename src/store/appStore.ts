@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 import type {
   Dialect,
+  Position,
   RelationGroupingMode,
   RelationLinePattern,
   RelationLineStyle,
@@ -51,6 +52,52 @@ const DEFAULT_TABLE_CONFIG: TableVisualConfig = {
 };
 
 const STORAGE_KEY = 'sql-data-modeler-store-v1';
+type LegacyTablePositionSnapshot = Record<string, Position>;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype;
+}
+
+function isFinitePosition(value: unknown): value is Position {
+  return isPlainObject(value) && Number.isFinite(value.x) && Number.isFinite(value.y);
+}
+
+function parseLegacyTablePositions(value: unknown): LegacyTablePositionSnapshot {
+  if (!isPlainObject(value)) return {};
+
+  const snapshot: LegacyTablePositionSnapshot = {};
+
+  for (const [tableKey, position] of Object.entries(value)) {
+    if (!isFinitePosition(position)) return {};
+    snapshot[tableKey] = { x: position.x, y: position.y };
+  }
+
+  return snapshot;
+}
+
+function cloneLegacyTablePositionSnapshot(snapshot: LegacyTablePositionSnapshot): LegacyTablePositionSnapshot {
+  return Object.fromEntries(Object.entries(snapshot).map(([tableKey, position]) => [tableKey, { x: position.x, y: position.y }]));
+}
+
+function readPreHydrationLegacyTablePositionSnapshot(): LegacyTablePositionSnapshot {
+  if (typeof window === 'undefined') return {};
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw);
+    return parseLegacyTablePositions(parsed?.state?.tablePositions);
+  } catch {
+    return {};
+  }
+}
+
+const preHydrationLegacyTablePositionSnapshot = readPreHydrationLegacyTablePositionSnapshot();
+
+export function getPreHydrationLegacyTablePositionSnapshot(): LegacyTablePositionSnapshot {
+  return cloneLegacyTablePositionSnapshot(preHydrationLegacyTablePositionSnapshot);
+}
 
 export interface AppState {
   sqlText: string;

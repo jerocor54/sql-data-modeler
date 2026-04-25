@@ -614,14 +614,14 @@ Aunque la UI ya sea más fluida, el costo de memoria puede seguir siendo un lím
 1. [x] Registrar la verdad recuperada del baseline: esquema real soportado, preset `S` interactivo-seguro y preset `M` todavía en territorio de timeout/fallback.
 2. [x] Alinear el soporte publicado entre plan, benchmark datasets, benchmark UI y baseline docs sin cambiar contratos de ejecución.
 3. [x] Dejar explícito que este slice es SOLO de copy/documentación y que no reabre optimización de `M`, tuning de timeout ni cambios de layout/runtime.
-4. [ ] Recién después de cerrar esta verdad del soporte, decidir si existe un slice técnico separado para optimizar `M` o retomar payload/store.
+4. [x] Decisión tomada: antes de abrir optimización especulativa de `M`, cerrar la deuda verificable de persistencia de `tablePositions` que había quedado con validación parcial.
 
 ### Slice 2 — persistencia acotada de `tablePositions`
 
 5. [x] Sacar `panelSplit`, `activeViewTab` y `diagramViewport` del snapshot durable para dejar ese churn como estado de sesión.
 6. [x] Reemplazar la suscripción amplia de `ERDApp.tsx` por selectores/hooks acotados del store durable.
-7. [ ] Mover SOLO la durabilidad de `tablePositions` a un canal dedicado con flush diferido, dirty-check y fallback de hidratación desde el snapshot legacy cuando falte la nueva clave.
-8. [ ] Validar que `sqlText`, `tableConfig`, preferencias durables y la continuidad del layout manual sigan restaurando tras reload sin reabrir payload/parser/render.
+7. [x] Mover SOLO la durabilidad de `tablePositions` a un canal dedicado con flush diferido, dirty-check y fallback/migración de hidratación desde el snapshot legacy cuando falte la nueva clave.
+8. [x] Validar con Playwright MCP que el drag escribe la clave dedicada, el snapshot amplio queda sin `tablePositions`, el reload restaura layout manual, el legacy ausente de clave dedicada migra correctamente y el payload dedicado corrupto falla seguro sin reabrir payload/parser/render.
 
 ### Slices posteriores — todavía pendientes
 
@@ -639,9 +639,9 @@ Aunque la UI ya sea más fluida, el costo de memoria puede seguir siendo un lím
 
 ### Estado del slice actual
 
-- El slice activo actual es deliberadamente copy-only: documenta la verdad recuperada del soporte sin tocar `layout.worker.ts`, budgets, timeouts ni gating de runtime más allá de la metadata/copy necesaria para no mentir.
-- La frontera verificada de hoy es simple y tiene que repetirse igual en todas las superficies: esquema real soportado, `S` soportado sobre ELK, `M` en fallback por timeout hoy, `L+` solo para medición controlada.
-- Si el equipo quiere que `M` pase a soporte interactivo real, eso merece un slice técnico aparte con evidencia nueva; este cambio NO adelanta ese trabajo.
+- La verdad recuperada del soporte ya quedó cerrada y pusheada: esquema real soportado, `S` soportado sobre ELK, `M` en fallback por timeout hoy, `L+` solo para medición controlada.
+- La continuidad inmediata de Fase 5 fue cerrar la validación parcial de persistencia de `tablePositions`: se confirmó el canal dedicado, la exclusión del snapshot amplio, la restauración tras reload, la migración desde legacy y el fail-safe ante payload dedicado corrupto.
+- Si el equipo quiere que `M` pase a soporte interactivo real, eso merece un slice técnico aparte con evidencia nueva; la continuidad actual NO adelanta ese trabajo.
 
 ### Qué NO hacer en este slice
 

@@ -1,4 +1,5 @@
 import type { Position } from '../types/erd';
+import { getPreHydrationLegacyTablePositionSnapshot } from './appStore';
 
 const TABLE_POSITION_STORAGE_KEY = 'sql-data-modeler-table-positions-v1';
 const LEGACY_APP_STORAGE_KEY = 'sql-data-modeler-store-v1';
@@ -81,6 +82,15 @@ function readLegacyTablePositions(storage: Storage): PersistedTablePositions {
   }
 }
 
+function writeDedicatedTablePositions(storage: Storage, snapshot: PersistedTablePositions): void {
+  if (Object.keys(snapshot).length === 0) {
+    storage.removeItem(TABLE_POSITION_STORAGE_KEY);
+    return;
+  }
+
+  storage.setItem(TABLE_POSITION_STORAGE_KEY, JSON.stringify(snapshot));
+}
+
 export function createTablePositionPersistence(): TablePositionPersistence {
   let lastFlushedSnapshot: PersistedTablePositions = {};
   let pendingSnapshot: PersistedTablePositions | null = null;
@@ -161,7 +171,21 @@ export function createTablePositionPersistence(): TablePositionPersistence {
       }
 
       const dedicatedSnapshot = readDedicatedTablePositions(window.localStorage);
-      const loadedSnapshot = dedicatedSnapshot ?? readLegacyTablePositions(window.localStorage);
+      let loadedSnapshot = dedicatedSnapshot;
+
+      if (loadedSnapshot === null) {
+        const preHydrationLegacySnapshot = getPreHydrationLegacyTablePositionSnapshot();
+        const legacySnapshot =
+          Object.keys(preHydrationLegacySnapshot).length > 0
+            ? preHydrationLegacySnapshot
+            : readLegacyTablePositions(window.localStorage);
+
+        loadedSnapshot = legacySnapshot;
+
+        if (Object.keys(legacySnapshot).length > 0) {
+          writeDedicatedTablePositions(window.localStorage, legacySnapshot);
+        }
+      }
 
       lastFlushedSnapshot = cloneSnapshot(loadedSnapshot);
       pendingSnapshot = null;

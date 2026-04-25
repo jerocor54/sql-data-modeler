@@ -67,6 +67,15 @@ The system MUST restore durable `tablePositions` through an explicit hydration s
 - WHEN the app boots and hydration completes
 - THEN `tablePositions` is restored before manual-layout consumers finalize their initial state
 
+#### Scenario: Migrate legacy table positions before broad snapshot cleanup
+
+- GIVEN the dedicated table-position key is absent
+- AND the legacy broad app snapshot still contains valid `tablePositions`
+- WHEN the app boots and the broad store hydration removes `tablePositions` from its persisted snapshot
+- THEN the pre-hydration legacy positions are still restored into runtime `tablePositions`
+- AND those positions are immediately written into the dedicated table-position key
+- AND the broad app snapshot remains free of `tablePositions`
+
 #### Scenario: Fall back when persisted data is unavailable
 
 - GIVEN dedicated persisted position data is missing or cannot be parsed
