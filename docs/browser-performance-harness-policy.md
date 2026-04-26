@@ -1,18 +1,19 @@
-# Future browser harness policy
+# Browser harness policy
 
-This document defines the intended policy for a future browser-backed harness that reads `window.__SQL_DATA_MODELER_PERF__`.
+This document defines the policy for the browser-backed harness that reads `window.__SQL_DATA_MODELER_PERF__`.
 
-It is a policy seam only. It does **not** add automation, gates, or new runtime instrumentation by itself.
+Today the repo includes a MINIMAL local harness only. It stays narrow on purpose: DEV-only, benchmark-route only, preset-driven, and focused on snapshot contract/readability/coherence rather than fake UX precision.
 
 ## Target route and execution context
 
-- Primary target: `/benchmark` on the local DEV server.
+- Primary benchmark page: `/benchmark`.
+- Real local DEV URL: `/sql-data-modeler/benchmark`, because Astro dev preserves the configured `base: '/sql-data-modeler'`.
 - Primary mode: explicit benchmark presets, not arbitrary user-authored schemas.
 - Initial contexts:
   - `S` as the small supported smoke path.
   - `M` as the known support boundary/fallback truth path.
 
-Why `/benchmark` first:
+Why the benchmark page first:
 
 - it already exposes deterministic benchmark datasets;
 - it isolates performance intent better than the main editing surface;
@@ -26,11 +27,11 @@ The harness SHOULD prefer explicit app readiness over arbitrary sleeps.
 
 Recommended capture flow:
 
-1. Open `/benchmark` in DEV mode.
+1. Open `/sql-data-modeler/benchmark` in DEV mode.
 2. Select a declared benchmark context/preset.
 3. Trigger the benchmark/app load path.
 4. Wait until `window.__SQL_DATA_MODELER_PERF__` exists with the expected `schemaVersion`.
-5. Wait until the route reaches the same honest "usable" point already documented for `/benchmark`: parse finished, layout/fallback finished, graph committed, and two `requestAnimationFrame` ticks passed after commit.
+5. Wait until the route reaches the same honest "usable" point already documented for the benchmark page: parse finished, layout/fallback finished, graph committed, and two `requestAnimationFrame` ticks passed after commit.
 6. Read the snapshot once that state is stable.
 
 The harness SHOULD NOT use fixed sleeps as pass/fail evidence except as a bounded timeout guard.
@@ -59,7 +60,7 @@ Initial browser-backed checks should focus on:
 
 The first gates SHOULD be narrow and honest:
 
-- the DEV snapshot is present and readable on `/benchmark`;
+- the DEV snapshot is present and readable on `/sql-data-modeler/benchmark`;
 - the selected benchmark context is reflected consistently in the exported snapshot;
 - `S` can be captured through the browser path with coherent timing/graph/model data;
 - `M` preserves the current truth boundary, including timeout/fallback diagnostics when that happens;
@@ -73,7 +74,7 @@ They SHOULD NOT initially gate on:
 
 - precise FPS guarantees;
 - pixel-perfect overlay rendering or visual diff approval;
-- broad editor UX outside `/benchmark`;
+- broad editor UX outside the benchmark page;
 - production-mode behavior;
 - cross-browser certification;
 - memory budgets or full interaction latency across all editing workflows.
@@ -87,9 +88,62 @@ Those concerns need dedicated harness scope and evidence later.
 - The browser harness MUST NOT replace the CLI gate as long as browser automation is still narrower, noisier, or not yet budgeted honestly.
 - Early browser-backed gates should start with semantic truth and capture integrity, not with fake precision budgets copied from Node/CLI runs.
 
+## Minimal local harness available now
+
+### Setup
+
+1. Install dependencies from repo root with `npm install`.
+2. Install the Playwright browser once on the machine:
+
+   ```bash
+   npx playwright install chromium
+   ```
+
+### Usage
+
+Run the minimal browser harness from repo root:
+
+```bash
+npm run benchmark:browser -- --preset=s
+```
+
+Optional boundary check:
+
+```bash
+npm run benchmark:browser -- --preset=m
+```
+
+Optional flags:
+
+- `--timeout-ms=45000` to widen the bounded wait guard.
+- `--headed` to watch Chromium run locally.
+
+### What this harness actually does
+
+1. Starts the local DEV server itself.
+2. Opens `/sql-data-modeler/benchmark` in Chromium.
+3. Selects an explicit preset (`s` by default, `m` optional).
+4. Clicks **Cargar dataset en la app**.
+5. Waits for the honest readiness seam already exported by the app:
+   - snapshot exists,
+   - `schemaVersion === 'phase-7-dev-v1'`,
+   - `presentation.layoutPending === false`,
+   - `timings.totalMs !== null`.
+6. Reads `window.__SQL_DATA_MODELER_PERF__`.
+7. Prints structured JSON with pass/fail for contract, readability, and coherence only.
+
+### What this harness intentionally does NOT do
+
+- no FPS claims;
+- no visual diffing;
+- no wide editor-route coverage;
+- no production assertions;
+- no cross-browser matrix;
+- no browser timing budgets copied from CLI baselines.
+
 ## Current status
 
 - Snapshot seam: available now via `window.__SQL_DATA_MODELER_PERF__` in DEV.
 - Snapshot contract: documented now in `docs/browser-performance-snapshot-contract.md`.
-- Harness policy: documented here.
-- Actual browser automation and enforced browser-backed gates: still pending.
+- Minimal local harness: available now via `npm run benchmark:browser`.
+- Enforced browser-backed gates or broader browser certification: still pending.

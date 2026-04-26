@@ -12,7 +12,8 @@
     "astro": "astro",
     "benchmark:phase0": "tsx scripts/performance/runPhase0Baseline.ts",
     "benchmark:phase0:assert": "tsx scripts/performance/assertPhase0Baseline.ts",
-    "benchmark:phase3-canvas": "tsx scripts/performance/runPhase3CanvasSmoke.ts"
+    "benchmark:phase3-canvas": "tsx scripts/performance/runPhase3CanvasSmoke.ts",
+    "benchmark:browser": "tsx scripts/performance/runBrowserBenchmarkHarness.ts"
   },
   "dependencies": {
     "@astrojs/react": "^5.0.3",
@@ -36,6 +37,7 @@
     "@astrojs/check": "^0.9.8",
     "@types/dagre": "^0.7.54",
     "@types/node": "^25.6.0",
+    "playwright": "^1.59.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

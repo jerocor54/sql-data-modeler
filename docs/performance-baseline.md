@@ -4,7 +4,7 @@ Este baseline existe para medir el costo real de parse + layout **antes** de ent
 
 La Fase 0 ya no depende solo de clicks manuales en navegador:
 
-- hay una ruta `/benchmark` para medir “total usable” dentro de la app real;
+- hay una ruta de benchmark (`/sql-data-modeler/benchmark` en DEV local, porque Astro respeta el `base`) para medir “total usable” dentro de la app real;
 - y ahora hay un CLI reproducible para medir parse + ELK desde repo root, sin build previo.
 
 ## Artefactos de Fase 0
@@ -83,7 +83,7 @@ Sí mide algo útil y honesto para Fase 3: cuántas invalidaciones potenciales p
 ## Cómo correr el baseline manual en navegador
 
 1. Levantá la app local con `npm run dev`.
-2. Abrí `http://localhost:4321/benchmark`.
+2. Abrí `http://localhost:4321/sql-data-modeler/benchmark`.
 3. Elegí un preset.
 4. Si querés un smoke interactivo seguro, usá `S`.
 5. Si querés evidenciar el borde actual de soporte, seleccioná `M`: la referencia honesta es timeout/fallback, no soporte interactivo estable.
@@ -94,7 +94,7 @@ Sí mide algo útil y honesto para Fase 3: cuántas invalidaciones potenciales p
 
 ## Definición honesta de “diagrama usable”
 
-En la ruta `/benchmark`, en esta fase se considera “usable” cuando:
+En la ruta de benchmark (`/sql-data-modeler/benchmark` en DEV), en esta fase se considera “usable” cuando:
 
 1. terminó el parseo,
 2. terminó el layout (ELK o fallback),
@@ -161,7 +161,7 @@ Son guardrails iniciales para detectar regresiones del baseline actual mientras 
 - La primera tanda documentada acá está tomada en Node, no en browser real.
 - Esta fase NO cubre todavía memoria, FPS, latencia de edición ni bloqueo fino del main thread.
 - Los datasets siguen siendo sintéticos: excelentes para comparar regresiones, no para representar todos los esquemas reales.
-- El gate formal actual cubre evidencia CLI/versionada; la validación browser-backed sigue pendiente.
+- El gate formal actual sigue cubriendo evidencia CLI/versionada; ahora existe un harness browser-backed mínimo en DEV (`npm run benchmark:browser`), pero las gates browser más amplias siguen pendientes.
 
 ## Slice de validación pendiente: Phase 5 next slice
 
@@ -174,7 +174,7 @@ Para cerrar el warning archivado sobre payload metrics en superficies reales de 
 Reglas de esta validación:
 
 1. No hacer build; usar `npm run dev`.
-2. Validar sobre `http://localhost:4321/benchmark`.
+2. Validar sobre `http://localhost:4321/sql-data-modeler/benchmark`.
 3. Capturar la UI del panel, JSON copiado y JSON exportado para la MISMA corrida.
 4. Registrar si preset `m` completa o cae en fallback/timeout, porque la referencia CLI sigue en ~26.6-26.8s frente a un budget in-app de `2500 ms`.
 5. Si falta algún campo de payload en UI o JSON, documentarlo como evidencia y NO abrir refactors fuera de este slice.

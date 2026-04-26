@@ -1,7 +1,7 @@
 {
   "change": "phase-5-next-slice",
   "capturedAt": "REPLACE_WITH_ISO_TIMESTAMP",
-  "baseUrl": "http://localhost:4321/benchmark",
+  "baseUrl": "http://localhost:4321/sql-data-modeler/benchmark",
   "command": "npm run dev",
   "preset": "s",
   "datasetVersion": "REPLACE_WITH_DATASET_VERSION",

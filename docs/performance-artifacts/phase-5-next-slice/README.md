@@ -1,6 +1,6 @@
 # Phase 5 Next Slice · Browser validation evidence
 
-Este directorio existe para cerrar el warning pendiente de `phase-5-memory-caches-payloads` con evidencia reproducible sobre `/benchmark`.
+Este directorio existe para cerrar el warning pendiente de `phase-5-memory-caches-payloads` con evidencia reproducible sobre la ruta real de DEV `http://localhost:4321/sql-data-modeler/benchmark`.
 
 ## Objetivo
 
@@ -24,7 +24,7 @@ npm run dev
 Abrir:
 
 ```text
-http://localhost:4321/benchmark
+http://localhost:4321/sql-data-modeler/benchmark
 ```
 
 ## Preset recomendado para evidencia
@@ -51,7 +51,7 @@ Guardar estos archivos con nombres estables en este directorio:
 ## Flujo de captura
 
 1. Levantar la app con `npm run dev`.
-2. Abrir `/benchmark`.
+2. Abrir `/sql-data-modeler/benchmark`.
 3. Cargar preset `s`.
 4. Esperar a que termine la corrida y sacar `benchmark-panel-ui.png`.
 5. Copiar resultados JSON y guardarlos en `benchmark-copy-results.json`.

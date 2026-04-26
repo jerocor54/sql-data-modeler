@@ -338,7 +338,7 @@ Esta implementación deja resueltos:
 
 ### Caveats explícitos que NO bloquean el pase a Fase 1
 
-- falta capturar una tanda equivalente de “total usable” en browser real para documentar el lado UI con la ruta `/benchmark`
+- falta capturar una tanda equivalente de “total usable” en browser real para documentar el lado UI con la ruta de DEV real `/sql-data-modeler/benchmark`
 - memoria aproximada
 - FPS en pan/zoom
 - latencia al editar SQL
@@ -761,11 +761,11 @@ Este primer slice de Fase 7 deja resuelto SOLO lo siguiente:
 - instrumentación DEV-only de `long tasks` bajo `src/features/performance/` con degradación limpia cuando el navegador no lo soporta
 - seam DEV-only bajo `src/features/performance/browserPerformanceSnapshot.ts` que publica un snapshot serializable y read-only en `window.__SQL_DATA_MODELER_PERF__`
 - contrato explícito del snapshot DEV-only en `docs/browser-performance-snapshot-contract.md` para destrabar un harness browser-backed futuro sin inventar compatibilidad implícita
-- política explícita del harness futuro en `docs/browser-performance-harness-policy.md` para fijar ruta `/benchmark`, filosofía de captura y alcance honesto antes de automatizar
+- política explícita del harness browser-backed en `docs/browser-performance-harness-policy.md` para fijar la URL local real `/sql-data-modeler/benchmark`, filosofía de captura y alcance honesto antes de ampliar gates
 
 ### Pendiente real de Fase 7
 
-- extender los gates desde la evidencia CLI hacia `/benchmark` y browser real sin caer en teatro
+- extender los gates desde la evidencia CLI hacia `/sql-data-modeler/benchmark` y browser real sin caer en teatro
 - cubrir UX/FPS/overlay con un harness browser-backed honesto
 - ampliar el criterio de comparación repetible más allá de la evidencia CLI versionada
 - convertir la política documentada en harness/automatización real y recién después endurecer budgets/pass-fail browser-backed honestos
@@ -790,7 +790,7 @@ Además del gate CLI y del seam DEV-only ya entregados, ahora queda resuelto EST
 
 Además del gate CLI y del contrato del snapshot ya entregados, ahora queda resuelto ESTE pedazo puntual de Fase 7:
 
-- `docs/browser-performance-harness-policy.md` fija que el primer target del harness futuro debe ser `/benchmark` en DEV con contextos explícitos como `S` y `M`
+- `docs/browser-performance-harness-policy.md` fija que el primer target local del harness debe ser `/sql-data-modeler/benchmark` en DEV con contextos explícitos como `S` y `M`
 - la política deja escrito que la captura debe esperar readiness explícita y el punto honesto de "usable" ya documentado, en vez de depender de sleeps arbitrarios
 - también deja delimitado qué debe leer primero (`timings`, `graph`, `model`, `presentation`, `diagnostics`, `longTasks`) y qué NO debe fingir cubrir todavía (FPS/UX general/producción/cross-browser)
 
