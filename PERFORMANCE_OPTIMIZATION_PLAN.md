@@ -743,6 +743,7 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
 - [x] ya no dependemos solo de percepción subjetiva para parse/layout/render/nodos/edges/modo/fallback en desarrollo.
 - [x] ya existe un gate formal y repetible para la evidencia CLI del baseline versionado.
 - [x] existe un contrato DEV-only serializable en `window.__SQL_DATA_MODELER_PERF__` para que un harness browser-backed futuro lea métricas reales sin acoplarse a internals React.
+- [x] la shape/versionado/caveats de ese snapshot ya quedaron documentados explícitamente en `docs/browser-performance-snapshot-contract.md`.
 - [ ] seguimos sin gates browser-backed para UX/FPS/overlay real.
 
 ## Criterio de salida
@@ -758,13 +759,14 @@ Este primer slice de Fase 7 deja resuelto SOLO lo siguiente:
 - visibilidad explícita de fallback/layout diagnostics cuando aparece degradación
 - instrumentación DEV-only de `long tasks` bajo `src/features/performance/` con degradación limpia cuando el navegador no lo soporta
 - seam DEV-only bajo `src/features/performance/browserPerformanceSnapshot.ts` que publica un snapshot serializable y read-only en `window.__SQL_DATA_MODELER_PERF__`
+- contrato explícito del snapshot DEV-only en `docs/browser-performance-snapshot-contract.md` para destrabar un harness browser-backed futuro sin inventar compatibilidad implícita
 
 ### Pendiente real de Fase 7
 
 - extender los gates desde la evidencia CLI hacia `/benchmark` y browser real sin caer en teatro
 - cubrir UX/FPS/overlay con un harness browser-backed honesto
 - ampliar el criterio de comparación repetible más allá de la evidencia CLI versionada
-- decidir y documentar la shape estable que usará el futuro harness browser-backed como contrato de compatibilidad
+- convertir el contrato DEV documentado en una política real de harness/gates browser-backed (captura, timings, budgets y pass/fail)
 
 ### Slice honesto adicional cerrado ahora
 
@@ -773,6 +775,14 @@ Además del overlay dev ya entregado, ahora queda resuelto ESTE pedazo puntual d
 - `scripts/performance/assertPhase0Baseline.ts` valida la shape de JSON y los budgets/documented truth del baseline CLI
 - `npm run benchmark:phase0:assert` deja un gate repetible para `S`/`M` y para los límites honestos de `L`/`XL`/`XXL`
 - el gate NO finge cobertura de browser/UX; solo endurece lo que hoy sí tiene evidencia versionada
+
+### Slice honesto adicional cerrado ahora — contrato del snapshot
+
+Además del gate CLI y del seam DEV-only ya entregados, ahora queda resuelto ESTE pedazo puntual de Fase 7:
+
+- `docs/browser-performance-snapshot-contract.md` documenta dónde vive el snapshot DEV-only y quién debe consumirlo
+- el contrato deja explícitos `schemaVersion`, categorías top-level expuestas y nullability esperada
+- también deja escritos los no-objetivos: no es API productiva, no agrega gates browser-backed y no promete compatibilidad implícita fuera de la versión declarada
 
 ---
 
