@@ -2,7 +2,7 @@ import type { LayoutFallbackDiagnostics } from '../auto-layout/layoutWorkerProto
 import type { LayoutEngineMode } from '../auto-layout/useAutoLayout';
 import type { DiagramPresentationMode, DiagramPresentationStrategy } from '../diagram-presentation/useDiagramPresentation';
 import type { DiagramBenchmarkResult } from './diagramPerformance';
-import { useLongTaskObserver } from './useLongTaskObserver';
+import type { LongTaskSummary } from './useLongTaskObserver';
 
 interface PerformanceOverlayProps {
   latestResult: DiagramBenchmarkResult | null;
@@ -10,6 +10,7 @@ interface PerformanceOverlayProps {
   layoutMode: LayoutEngineMode;
   layoutPending: boolean;
   layoutWarning: string;
+  longTasks: LongTaskSummary;
   presentationIsAutomatic: boolean;
   presentationMode: DiagramPresentationMode;
   presentationStrategy: DiagramPresentationStrategy;
@@ -83,6 +84,7 @@ export default function PerformanceOverlay({
   layoutMode,
   layoutPending,
   layoutWarning,
+  longTasks,
   presentationIsAutomatic,
   presentationMode,
   presentationStrategy,
@@ -95,7 +97,6 @@ export default function PerformanceOverlay({
   totalNodeCount,
   viewMode,
 }: PerformanceOverlayProps) {
-  const longTasks = useLongTaskObserver();
   if (!import.meta.env.DEV) return null;
 
   const parseMs = latestResult?.parseMs ?? null;

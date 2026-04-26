@@ -48,10 +48,15 @@ import {
 import { useDiagramModel, type DiagramSearchResult } from '../features/parse-sql/useDiagramModel';
 import type { BenchmarkDatasetPresetId } from '../features/performance/benchmarkDatasets';
 import {
+  useBrowserPerformanceSnapshot,
+  useDevBrowserPerformanceExport,
+} from '../features/performance/browserPerformanceSnapshot';
+import {
   useDiagramPerformance,
   type DiagramBenchmarkRunMeta,
 } from '../features/performance/diagramPerformance';
 import PerformanceOverlay from '../features/performance/PerformanceOverlay';
+import { useLongTaskObserver } from '../features/performance/useLongTaskObserver';
 import DiagramWorkspace from './workspaces/DiagramWorkspace';
 import SqlEditorPanel from './SqlEditorPanel';
 import { useERDAppSessionState } from './useERDAppSessionState';
@@ -271,6 +276,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   const [diagramSearch, setDiagramSearch] = useState('');
   const pendingBenchmarkMetaRef = useRef<DiagramBenchmarkRunMeta | null>(null);
   const { latestResult, history, createParseRun, finishParse, startLayout, finishLayout, finalizeRun, clearHistory } = useDiagramPerformance();
+  const longTasks = useLongTaskObserver();
   const {
     ambiguousColumns,
     ambiguousReferences,
@@ -547,6 +553,26 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     () => edges.filter((edge) => visibleEdgeIds.has(edge.id)),
     [edges, visibleEdgeIds],
   );
+  const browserPerformanceSnapshot = useBrowserPerformanceSnapshot({
+    latestResult,
+    layoutDiagnostics,
+    layoutMode,
+    layoutPending,
+    layoutWarning,
+    longTasks,
+    presentationIsAutomatic: isDiagramPresentationAutomatic,
+    presentationMode: diagramPresentationMode,
+    presentationStrategy: currentAutomaticStrategy,
+    presentedEdgeCount: presentedEdges.length,
+    presentedNodeCount: presentedNodes.length,
+    relationshipCount: parsed.relationships.length,
+    sqlTextLength: sqlText.length,
+    tableCount: parsed.tables.length,
+    totalEdgeCount: edges.length,
+    totalNodeCount: nodes.length,
+    viewMode,
+  });
+  useDevBrowserPerformanceExport(browserPerformanceSnapshot);
 
   useEffect(() => () => {
     if (focusResetTimerRef.current) window.clearTimeout(focusResetTimerRef.current);
@@ -1451,6 +1477,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
         layoutMode={layoutMode}
         layoutPending={layoutPending}
         layoutWarning={layoutWarning}
+        longTasks={longTasks}
         presentationIsAutomatic={isDiagramPresentationAutomatic}
         presentationMode={diagramPresentationMode}
         presentationStrategy={currentAutomaticStrategy}

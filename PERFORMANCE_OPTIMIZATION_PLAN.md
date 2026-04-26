@@ -736,12 +736,13 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
    - [x] tamaño del modelo
 3. Registrar long tasks. ✅ Cerrado en este slice con observación DEV-only degradable y resumen compacto en overlay.
 4. Registrar fallbacks activados. ✅ Cerrado en este slice con estado + diagnósticos visibles en overlay.
-5. Definir gates mínimos para no aceptar regresiones graves. ◑ Slice honesto actual: gate CLI sobre baseline versionado; browser-backed gates siguen pendientes.
+5. Definir gates mínimos para no aceptar regresiones graves. ◑ Slice honesto actual: gate CLI sobre baseline versionado + seam DEV-only de snapshot browser-readable; browser-backed gates siguen pendientes.
 
 ## Validación
 
 - [x] ya no dependemos solo de percepción subjetiva para parse/layout/render/nodos/edges/modo/fallback en desarrollo.
 - [x] ya existe un gate formal y repetible para la evidencia CLI del baseline versionado.
+- [x] existe un contrato DEV-only serializable en `window.__SQL_DATA_MODELER_PERF__` para que un harness browser-backed futuro lea métricas reales sin acoplarse a internals React.
 - [ ] seguimos sin gates browser-backed para UX/FPS/overlay real.
 
 ## Criterio de salida
@@ -756,12 +757,14 @@ Este primer slice de Fase 7 deja resuelto SOLO lo siguiente:
 - métricas ya disponibles expuestas sin agregar persistencia nueva
 - visibilidad explícita de fallback/layout diagnostics cuando aparece degradación
 - instrumentación DEV-only de `long tasks` bajo `src/features/performance/` con degradación limpia cuando el navegador no lo soporta
+- seam DEV-only bajo `src/features/performance/browserPerformanceSnapshot.ts` que publica un snapshot serializable y read-only en `window.__SQL_DATA_MODELER_PERF__`
 
 ### Pendiente real de Fase 7
 
 - extender los gates desde la evidencia CLI hacia `/benchmark` y browser real sin caer en teatro
 - cubrir UX/FPS/overlay con un harness browser-backed honesto
 - ampliar el criterio de comparación repetible más allá de la evidencia CLI versionada
+- decidir y documentar la shape estable que usará el futuro harness browser-backed como contrato de compatibilidad
 
 ### Slice honesto adicional cerrado ahora
 
