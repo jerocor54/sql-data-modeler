@@ -2,6 +2,8 @@
 
 This document defines the policy for the browser-backed harness that reads `window.__SQL_DATA_MODELER_PERF__`.
 
+The human-readable policy in this document is mirrored by the typed machine-readable file at `scripts/performance/browserBudgetPolicy.ts`. The harness and the repo-level assert workflow MUST use that TS policy as the executable source for preset ceilings, fallback semantics, and required gate names.
+
 Today the repo includes a MINIMAL local harness only. It stays narrow on purpose: DEV-only, benchmark-route only, preset-driven, and focused on snapshot contract/readability/coherence rather than fake UX precision.
 
 ## Target route and execution context
@@ -36,7 +38,7 @@ Recommended capture flow:
 
 The harness SHOULD NOT use fixed sleeps as pass/fail evidence except as a bounded timeout guard.
 
-## Metrics the future harness should read
+## Metrics the harness reads now
 
 The harness SHOULD read the documented top-level categories from the snapshot contract:
 
@@ -45,39 +47,58 @@ The harness SHOULD read the documented top-level categories from the snapshot co
 - `graph`
 - `model`
 - `presentation`
-- `diagnostics`
+- `diagnostics` (`fallbackActive`, `fallbackBoundary`, `fallbackLabel`, `statusLabel`, warning/diagnostics)
 - `longTasks`
 
-Initial browser-backed checks should focus on:
+Initial browser-backed checks focus on:
 
 - contract presence and version compatibility;
 - metric readability/nullability without mutating app state;
 - route/context truth (`viewMode`, automatic vs manual presentation, chosen layout mode);
 - fallback/timeout truth in `diagnostics`;
-- browser-only signals such as `longTasks` support and observed counts.
+- browser-only signals such as `longTasks` support and observed counts;
+- overlay-visible fallback/status labels only as coherence evidence;
+- fatal browser signals (`pageerror`, console errors, failed requests) only as regression gates.
 
-## What the first browser-backed gates SHOULD cover
+## Machine-readable preset policy
+
+Current executable policy lives in `scripts/performance/browserBudgetPolicy.ts`:
+
+| Preset | Readiness ceiling (`snapshot.timings.totalMs`) | Expected status label | Fallback rule |
+| --- | ---: | --- | --- |
+| `S` | `45000 ms` | `ready-non-fallback` | MUST stay non-fallback |
+| `M` | `120000 ms` | `ready-fallback-boundary` | MUST pass only as honest fallback boundary |
+
+Important: these are COARSE DEV-only browser ceilings. They are not FPS guarantees, not UX certification, and not a replacement for the CLI baseline gate.
+
+## What the first browser-backed gates cover
 
 The first gates SHOULD be narrow and honest:
 
 - the DEV snapshot is present and readable on `/sql-data-modeler/benchmark`;
 - the selected benchmark context is reflected consistently in the exported snapshot;
-- `S` can be captured through the browser path with coherent timing/graph/model data;
-- `M` preserves the current truth boundary, including timeout/fallback diagnostics when that happens;
+- `S` can be captured through the browser path with coherent timing/graph/model data AND pass only when the snapshot remains non-fallback within its coarse ceiling;
+- `M` preserves the current truth boundary, including timeout/fallback diagnostics when that happens, and MUST NOT be reported as a fake non-fallback success;
 - browser-only observability that the CLI cannot provide yet, especially `longTasks` and final presentation diagnostics.
 
-## What the first browser-backed gates SHOULD NOT cover
+The report now evaluates five check groups:
+
+- `checks.contract`
+- `checks.readability`
+- `checks.coherence`
+- `checks.budgets`
+- `checks.fatal`
+
+`checks.budgets` stays snapshot-driven. `checks.fatal` uses browser/runtime evidence only to catch fatal regressions.
+
+## What the first browser-backed gates MUST NOT cover
 
 The first gates SHOULD NOT pretend to cover more than they really validate.
 
-They SHOULD NOT initially gate on:
+They MUST NOT gate on:
 
-- precise FPS guarantees;
-- pixel-perfect overlay rendering or visual diff approval;
-- broad editor UX outside the benchmark page;
-- production-mode behavior;
-- cross-browser certification;
-- memory budgets or full interaction latency across all editing workflows.
+
+That means NO claims about exact FPS, visual diff approval, editor-route certification, production-mode confidence, or cross-browser parity in this slice. Come on: if the evidence is benchmark-route DEV-only, the claim has to stay benchmark-route DEV-only.
 
 Those concerns need dedicated harness scope and evidence later.
 
@@ -113,7 +134,7 @@ Repo-level assert workflow:
 npm run benchmark:browser:assert
 ```
 
-That workflow reuses the same harness twice — first `s`, then `m` — keeps the same stable artifact files per preset, and exits non-zero if either semantic harness run fails.
+That workflow reuses the same harness twice — first `s`, then `m` — keeps the same stable artifact files per preset, reads the persisted JSON reports back, and exits non-zero if any required contract, readability, coherence, budget, or fatal group fails.
 
 That command now also persists the same JSON report to a stable artifact path:
 
@@ -161,7 +182,27 @@ Artifact note:
    - `timings.totalMs !== null`.
 6. Reads `window.__SQL_DATA_MODELER_PERF__`.
 7. Writes structured JSON to a stable artifact file for the selected preset.
-8. Prints the same structured JSON with pass/fail for contract, readability, and coherence only.
+8. Captures overlay evidence (`fallbackLabel`, `statusLabel`) for coherence only.
+9. Captures fatal browser evidence (`pageerror`, console errors, failed requests).
+10. Prints the same structured JSON with pass/fail for contract, readability, coherence, budgets, and fatal.
+
+### Stable artifact shape
+
+Stable preset paths stay the same:
+
+- `docs/performance-artifacts/browser-harness/browser-benchmark-report.s.json`
+- `docs/performance-artifacts/browser-harness/browser-benchmark-report.m.json`
+
+The JSON shape evolves additively. Besides the existing top-level `snapshot`, the report now includes:
+
+- `harness.timeoutSource`
+- `checks.budgets`
+- `checks.fatal`
+- `evidence.snapshot`
+- `evidence.overlay`
+- `evidence.browser`
+
+This keeps existing report locations stable while making pass/fail reasons reproducible.
 
 ### What this harness intentionally does NOT do
 
@@ -171,6 +212,10 @@ Artifact note:
 - no production assertions;
 - no cross-browser matrix;
 - no browser timing budgets copied from CLI baselines.
+
+## Follow-up still intentionally deferred
+
+- Long-task gating remains presence/coherence-only for this phase. We record the metric, but we do NOT pretend a machine-independent long-task threshold is honest yet.
 
 ## Current status
 

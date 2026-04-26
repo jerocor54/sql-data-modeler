@@ -8,6 +8,10 @@ import type { LongTaskSummary } from './useLongTaskObserver';
 
 export const DEV_BROWSER_PERFORMANCE_SNAPSHOT_KEY = '__SQL_DATA_MODELER_PERF__';
 
+export type BrowserPerformanceFallbackLabel = 'fallback activo' | 'fallback inactivo';
+export type BrowserPerformanceFallbackBoundary = 'fallback-boundary' | 'non-fallback';
+export type BrowserPerformanceStatusLabel = 'running' | 'ready-non-fallback' | 'ready-fallback-boundary';
+
 interface BrowserPerformanceSnapshotInput {
   latestResult: DiagramBenchmarkResult | null;
   layoutDiagnostics: LayoutFallbackDiagnostics | null;
@@ -63,6 +67,9 @@ export interface BrowserPerformanceSnapshot {
   };
   diagnostics: {
     fallbackActive: boolean;
+    fallbackBoundary: BrowserPerformanceFallbackBoundary;
+    fallbackLabel: BrowserPerformanceFallbackLabel;
+    statusLabel: BrowserPerformanceStatusLabel;
     layoutWarning: string | null;
     layoutDiagnostics: {
       cause: LayoutFallbackDiagnostics['cause'];
@@ -73,6 +80,29 @@ export interface BrowserPerformanceSnapshot {
     } | null;
   };
   longTasks: LongTaskSummary;
+}
+
+export function deriveBrowserPerformanceDiagnostics(input: Pick<BrowserPerformanceSnapshotInput, 'layoutDiagnostics' | 'layoutMode' | 'layoutPending'>): {
+  fallbackActive: boolean;
+  fallbackBoundary: BrowserPerformanceFallbackBoundary;
+  fallbackLabel: BrowserPerformanceFallbackLabel;
+  statusLabel: BrowserPerformanceStatusLabel;
+} {
+  const fallbackActive = input.layoutMode === 'fallback' || Boolean(input.layoutDiagnostics);
+  const fallbackBoundary: BrowserPerformanceFallbackBoundary = fallbackActive ? 'fallback-boundary' : 'non-fallback';
+  const fallbackLabel: BrowserPerformanceFallbackLabel = fallbackActive ? 'fallback activo' : 'fallback inactivo';
+  const statusLabel: BrowserPerformanceStatusLabel = input.layoutPending
+    ? 'running'
+    : fallbackActive
+      ? 'ready-fallback-boundary'
+      : 'ready-non-fallback';
+
+  return {
+    fallbackActive,
+    fallbackBoundary,
+    fallbackLabel,
+    statusLabel,
+  };
 }
 
 function serializeLayoutDiagnostics(diagnostics: LayoutFallbackDiagnostics | null): BrowserPerformanceSnapshot['diagnostics']['layoutDiagnostics'] {
@@ -107,7 +137,7 @@ export function createBrowserPerformanceSnapshot(input: BrowserPerformanceSnapsh
   const renderApproxMs = input.latestResult
     ? Math.max(0, input.latestResult.totalMs - input.latestResult.parseMs - input.latestResult.layoutMs)
     : null;
-  const fallbackActive = input.layoutMode === 'fallback' || Boolean(input.layoutDiagnostics);
+  const browserDiagnostics = deriveBrowserPerformanceDiagnostics(input);
 
   return {
     schemaVersion: 'phase-7-dev-v1',
@@ -143,7 +173,10 @@ export function createBrowserPerformanceSnapshot(input: BrowserPerformanceSnapsh
       viewMode: input.viewMode,
     },
     diagnostics: {
-      fallbackActive,
+      fallbackActive: browserDiagnostics.fallbackActive,
+      fallbackBoundary: browserDiagnostics.fallbackBoundary,
+      fallbackLabel: browserDiagnostics.fallbackLabel,
+      statusLabel: browserDiagnostics.statusLabel,
       layoutWarning: input.layoutWarning || null,
       layoutDiagnostics: serializeLayoutDiagnostics(input.layoutDiagnostics),
     },

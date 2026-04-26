@@ -10,18 +10,23 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 import astroConfig from '../../astro.config.mjs';
+import {
+  createBrowserHarnessReportPath,
+  getBrowserBudgetPolicy,
+  type BrowserBudgetCheckName,
+  type BrowserBudgetPolicy,
+  type BrowserFatalCheckName,
+  type HarnessPresetId,
+} from './browserBudgetPolicy.ts';
 
 import {
   createBenchmarkDataset,
   getBenchmarkDatasetPreset,
-  type BenchmarkDatasetPresetId,
 } from '../../src/features/performance/benchmarkDatasets.ts';
 import {
   DEV_BROWSER_PERFORMANCE_SNAPSHOT_KEY,
   type BrowserPerformanceSnapshot,
 } from '../../src/features/performance/browserPerformanceSnapshot.ts';
-
-type HarnessPresetId = Extract<BenchmarkDatasetPresetId, 's' | 'm'>;
 
 interface HarnessOptions {
   presetId: HarnessPresetId;
@@ -44,6 +49,23 @@ interface CheckResult {
   detail: string;
 }
 
+interface CheckGroup {
+  pass: boolean;
+  results: CheckResult[];
+}
+
+interface OverlayEvidence {
+  fallbackLabel: string | null;
+  statusLabel: string | null;
+  layoutWarning: string | null;
+}
+
+interface BrowserFatalEvidence {
+  pageErrors: string[];
+  consoleErrors: string[];
+  requestFailures: string[];
+}
+
 interface HarnessReport {
   status: 'pass' | 'fail';
   harness: {
@@ -55,21 +77,20 @@ interface HarnessReport {
     expectedTableCount: number;
     browser: 'chromium';
     timeoutMs: number;
+    timeoutSource: 'default' | 'cli';
     headed: boolean;
   };
   checks: {
-    contract: {
-      pass: boolean;
-      results: CheckResult[];
-    };
-    readability: {
-      pass: boolean;
-      results: CheckResult[];
-    };
-    coherence: {
-      pass: boolean;
-      results: CheckResult[];
-    };
+    contract: CheckGroup;
+    readability: CheckGroup;
+    coherence: CheckGroup;
+    budgets: CheckGroup;
+    fatal: CheckGroup;
+  };
+  evidence: {
+    snapshot: BrowserPerformanceSnapshot | null;
+    overlay: OverlayEvidence;
+    browser: BrowserFatalEvidence;
   };
   snapshot: BrowserPerformanceSnapshot | null;
   failure?: {
@@ -103,7 +124,6 @@ const PROJECT_ROOT_PATH = fileURLToPath(PROJECT_ROOT);
 const BENCHMARK_PAGE_PATH = '/benchmark';
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4321;
-const DEFAULT_OUTPUT_DIRECTORY = 'docs/performance-artifacts/browser-harness';
 const DEFAULT_TIMEOUT_MS_BY_PRESET: Record<HarnessPresetId, number> = {
   s: 45_000,
   m: 120_000,
@@ -174,7 +194,7 @@ function parsePresetId(raw: string | undefined): HarnessPresetId {
 }
 
 function createDefaultOutputPath(presetId: HarnessPresetId): string {
-  return `${DEFAULT_OUTPUT_DIRECTORY}/browser-benchmark-report.${presetId}.json`;
+  return createBrowserHarnessReportPath(presetId);
 }
 
 function parseOutputPath(raw: string | undefined, presetId: HarnessPresetId): string {
@@ -227,7 +247,7 @@ function createRouteUrl(baseUrl: string): string {
   return new URL(ROUTE_PATH, `${baseUrl}/`).toString();
 }
 
-function summarizeGroup(results: CheckResult[]) {
+function summarizeGroup(results: CheckResult[]): CheckGroup {
   return {
     pass: results.every((result) => result.pass),
     results,
@@ -238,9 +258,108 @@ function isNumberOrNull(value: unknown): value is number | null {
   return value === null || typeof value === 'number';
 }
 
-function buildChecks(snapshot: BrowserPerformanceSnapshot, presetId: HarnessPresetId): HarnessReport['checks'] {
+function isTransientPageExecutionError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('Execution context was destroyed') ||
+    message.includes('Cannot find context with specified id') ||
+    message.includes('Target page, context or browser has been closed')
+  );
+}
+
+function createEmptyBrowserFatalEvidence(): BrowserFatalEvidence {
+  return {
+    pageErrors: [],
+    consoleErrors: [],
+    requestFailures: [],
+  };
+}
+
+function createEmptyOverlayEvidence(): OverlayEvidence {
+  return {
+    fallbackLabel: null,
+    statusLabel: null,
+    layoutWarning: null,
+  };
+}
+
+function evaluateBudgetCheck(
+  name: BrowserBudgetCheckName,
+  snapshot: BrowserPerformanceSnapshot,
+  policy: BrowserBudgetPolicy,
+): CheckResult {
+  switch (name) {
+    case 'snapshot-total-ms-within-ceiling': {
+      const pass = snapshot.timings.totalMs !== null && snapshot.timings.totalMs <= policy.readinessCeilingMs;
+      return createCheck(
+        name,
+        pass,
+        `totalMs=${String(snapshot.timings.totalMs)} · ceilingMs=${policy.readinessCeilingMs}`,
+      );
+    }
+    case 'snapshot-status-label-match': {
+      const pass = snapshot.diagnostics.statusLabel === policy.expectedStatusLabel;
+      return createCheck(
+        name,
+        pass,
+        `statusLabel=${snapshot.diagnostics.statusLabel} · expected=${policy.expectedStatusLabel}`,
+      );
+    }
+    case 'snapshot-requires-non-fallback': {
+      const pass =
+        policy.requiresNonFallback &&
+        snapshot.diagnostics.fallbackActive === false &&
+        snapshot.diagnostics.fallbackBoundary === 'non-fallback' &&
+        snapshot.presentation.layoutMode !== 'fallback';
+      return createCheck(
+        name,
+        pass,
+        `fallbackActive=${String(snapshot.diagnostics.fallbackActive)} · boundary=${snapshot.diagnostics.fallbackBoundary} · layoutMode=${snapshot.presentation.layoutMode}`,
+      );
+    }
+    case 'snapshot-requires-fallback-boundary': {
+      const pass =
+        policy.requiresFallbackBoundary &&
+        snapshot.diagnostics.fallbackActive === true &&
+        snapshot.diagnostics.fallbackBoundary === 'fallback-boundary' &&
+        (snapshot.presentation.layoutMode === 'fallback' ||
+          snapshot.diagnostics.layoutDiagnostics !== null ||
+          snapshot.diagnostics.layoutWarning !== null);
+      return createCheck(
+        name,
+        pass,
+        `fallbackActive=${String(snapshot.diagnostics.fallbackActive)} · boundary=${snapshot.diagnostics.fallbackBoundary} · layoutMode=${snapshot.presentation.layoutMode} · warning=${snapshot.diagnostics.layoutWarning ?? 'null'}`,
+      );
+    }
+  }
+
+  const exhaustiveCheck: never = name;
+  throw new Error(`Budget check no soportado: ${exhaustiveCheck}`);
+}
+
+function evaluateFatalCheck(name: BrowserFatalCheckName, browserEvidence: BrowserFatalEvidence): CheckResult {
+  switch (name) {
+    case 'page-errors-empty':
+      return createCheck(name, browserEvidence.pageErrors.length === 0, JSON.stringify(browserEvidence.pageErrors));
+    case 'console-errors-empty':
+      return createCheck(name, browserEvidence.consoleErrors.length === 0, JSON.stringify(browserEvidence.consoleErrors));
+    case 'request-failures-empty':
+      return createCheck(name, browserEvidence.requestFailures.length === 0, JSON.stringify(browserEvidence.requestFailures));
+  }
+
+  const exhaustiveCheck: never = name;
+  throw new Error(`Fatal check no soportado: ${exhaustiveCheck}`);
+}
+
+function buildChecks(
+  snapshot: BrowserPerformanceSnapshot,
+  presetId: HarnessPresetId,
+  overlayEvidence: OverlayEvidence,
+  browserEvidence: BrowserFatalEvidence,
+): HarnessReport['checks'] {
   const preset = getBenchmarkDatasetPreset(presetId);
   const expectedFallback = preset.interactiveSupport === 'fallback-only';
+  const policy = getBrowserBudgetPolicy(presetId);
 
   const contractResults: CheckResult[] = [
     createCheck(
@@ -312,12 +431,27 @@ function buildChecks(snapshot: BrowserPerformanceSnapshot, presetId: HarnessPres
       expectedFallback ? snapshot.diagnostics.fallbackActive : !snapshot.diagnostics.fallbackActive,
       `fallbackActive=${String(snapshot.diagnostics.fallbackActive)} · expectedPresetBoundary=${preset.interactiveSupport}`,
     ),
+    createCheck(
+      'overlay-fallback-label-aligned',
+      overlayEvidence.fallbackLabel === snapshot.diagnostics.fallbackLabel,
+      `overlay=${overlayEvidence.fallbackLabel ?? 'null'} · snapshot=${snapshot.diagnostics.fallbackLabel}`,
+    ),
+    createCheck(
+      'overlay-status-label-aligned',
+      overlayEvidence.statusLabel === snapshot.diagnostics.statusLabel,
+      `overlay=${overlayEvidence.statusLabel ?? 'null'} · snapshot=${snapshot.diagnostics.statusLabel}`,
+    ),
   ];
+
+  const budgetResults = policy.requiredBudgetChecks.map((name) => evaluateBudgetCheck(name, snapshot, policy));
+  const fatalResults = policy.requiredFatalChecks.map((name) => evaluateFatalCheck(name, browserEvidence));
 
   return {
     contract: summarizeGroup(contractResults),
     readability: summarizeGroup(readabilityResults),
     coherence: summarizeGroup(coherenceResults),
+    budgets: summarizeGroup(budgetResults),
+    fatal: summarizeGroup(fatalResults),
   };
 }
 
@@ -385,15 +519,47 @@ function evaluateSnapshotReadiness(
 async function readDevBrowserPerformanceSnapshot(
   page: import('playwright').Page,
 ): Promise<BrowserPerformanceSnapshot | null> {
-  const snapshot = await page.evaluate(
-    ({ snapshotKey }) => {
-      const value = (window as unknown as Record<string, unknown>)[snapshotKey];
-      return value ? JSON.parse(JSON.stringify(value)) : null;
-    },
-    { snapshotKey: DEV_BROWSER_PERFORMANCE_SNAPSHOT_KEY },
-  );
+  let snapshot: unknown;
+
+  try {
+    snapshot = await page.evaluate(
+      ({ snapshotKey }) => {
+        const value = (window as unknown as Record<string, unknown>)[snapshotKey];
+        return value ? JSON.parse(JSON.stringify(value)) : null;
+      },
+      { snapshotKey: DEV_BROWSER_PERFORMANCE_SNAPSHOT_KEY },
+    );
+  } catch (error) {
+    if (isTransientPageExecutionError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
 
   return snapshot as BrowserPerformanceSnapshot | null;
+}
+
+async function readOverlayEvidence(page: import('playwright').Page): Promise<OverlayEvidence> {
+  try {
+    return await page.evaluate(() => {
+      const fallbackElement = document.querySelector<HTMLElement>('[data-perf-fallback-label]');
+      const statusElement = document.querySelector<HTMLElement>('[data-perf-status-label]');
+      const warningElement = document.querySelector<HTMLElement>('[data-perf-layout-warning]');
+
+      return {
+        fallbackLabel: fallbackElement?.getAttribute('data-perf-fallback-label')?.trim() || null,
+        statusLabel: statusElement?.getAttribute('data-perf-status-label')?.trim() || null,
+        layoutWarning: warningElement?.getAttribute('data-perf-layout-warning')?.trim() || null,
+      };
+    });
+  } catch (error) {
+    if (isTransientPageExecutionError(error)) {
+      return createEmptyOverlayEvidence();
+    }
+
+    throw error;
+  }
 }
 
 async function waitForReadySnapshot(
@@ -478,7 +644,19 @@ async function waitForBenchmarkPresetCommit(
   await datasetCombobox.waitFor({ state: 'visible', timeout: timeoutMs });
 
   while (Date.now() < deadline) {
-    const [selectedPresetId, bodyText] = await Promise.all([datasetCombobox.inputValue(), body.innerText()]);
+    let selectedPresetId: string;
+    let bodyText: string;
+
+    try {
+      [selectedPresetId, bodyText] = await Promise.all([datasetCombobox.inputValue(), body.innerText()]);
+    } catch (error) {
+      if (isTransientPageExecutionError(error)) {
+        await delay(100);
+        continue;
+      }
+
+      throw error;
+    }
 
     if (
       selectedPresetId === expectation.presetId &&
@@ -515,15 +693,28 @@ async function waitForBenchmarkRouteInteractionReady(
   ]);
 
   while (Date.now() < deadline) {
-    const [snapshot, selectedPresetId, loadButtonDisabled, rerunButtonDisabled, bodyText] = await Promise.all([
-      page.evaluate((snapshotKey) => {
-        return (window as unknown as Record<string, unknown>)[snapshotKey] as BrowserPerformanceSnapshot | undefined;
-      }, DEV_BROWSER_PERFORMANCE_SNAPSHOT_KEY),
-      datasetCombobox.inputValue(),
-      loadButton.isDisabled(),
-      rerunButton.isDisabled(),
-      body.innerText(),
-    ]);
+    let snapshot: BrowserPerformanceSnapshot | null;
+    let selectedPresetId: string;
+    let loadButtonDisabled: boolean;
+    let rerunButtonDisabled: boolean;
+    let bodyText: string;
+
+    try {
+      [snapshot, selectedPresetId, loadButtonDisabled, rerunButtonDisabled, bodyText] = await Promise.all([
+        readDevBrowserPerformanceSnapshot(page),
+        datasetCombobox.inputValue(),
+        loadButton.isDisabled(),
+        rerunButton.isDisabled(),
+        body.innerText(),
+      ]);
+    } catch (error) {
+      if (isTransientPageExecutionError(error)) {
+        await delay(100);
+        continue;
+      }
+
+      throw error;
+    }
 
     if (
       snapshot?.schemaVersion === 'phase-7-dev-v1' &&
@@ -672,6 +863,21 @@ async function captureSnapshot(options: HarnessOptions): Promise<HarnessReport> 
   const { child, readyBaseUrl } = startDevServer(options, serverLogTail);
   let baseUrl = requestedBaseUrl;
   let routeUrl = requestedRouteUrl;
+  let browserEvidence = createEmptyBrowserFatalEvidence();
+  let overlayEvidence = createEmptyOverlayEvidence();
+
+  const createHarnessMetadata = () => ({
+    mode: 'dev' as const,
+    route: ROUTE_PATH,
+    baseUrl,
+    presetId: options.presetId,
+    presetLabel: preset.label,
+    expectedTableCount: preset.tableCount,
+    browser: 'chromium' as const,
+    timeoutMs: options.timeoutMs,
+    timeoutSource: options.timeoutSource,
+    headed: options.headed,
+  });
 
   try {
     const resolvedRoute = await resolveDevServerRoute(options, readyBaseUrl);
@@ -679,10 +885,27 @@ async function captureSnapshot(options: HarnessOptions): Promise<HarnessReport> 
     routeUrl = resolvedRoute.routeUrl;
 
     const browser = await chromium.launch({ headless: !options.headed });
+    let context: import('playwright').BrowserContext | null = null;
 
     try {
-      const context = await browser.newContext();
+      context = await browser.newContext();
       const page = await context.newPage();
+      browserEvidence = createEmptyBrowserFatalEvidence();
+
+      page.on('pageerror', (error) => {
+        browserEvidence.pageErrors.push(error.message);
+      });
+      page.on('console', (message) => {
+        if (message.type() === 'error') {
+          browserEvidence.consoleErrors.push(message.text());
+        }
+      });
+      page.on('requestfailed', (request) => {
+        if (request.resourceType() === 'websocket') return;
+        browserEvidence.requestFailures.push(
+          `${request.method()} ${request.url()} :: ${request.failure()?.errorText ?? 'unknown'}`,
+        );
+      });
 
       await page.goto(routeUrl, { waitUntil: 'domcontentloaded', timeout: options.timeoutMs });
       await waitForBenchmarkRouteInteractionReady(page, options.timeoutMs);
@@ -700,54 +923,46 @@ async function captureSnapshot(options: HarnessOptions): Promise<HarnessReport> 
       await page.getByRole('button', { name: 'Cargar dataset en la app' }).click();
 
       const snapshot = await waitForReadySnapshot(page, readinessTarget, options.timeoutMs);
-
-      await context.close();
+      overlayEvidence = await readOverlayEvidence(page);
 
       if (!snapshot) {
         throw new Error(`No se pudo leer ${DEV_BROWSER_PERFORMANCE_SNAPSHOT_KEY} después de la espera.`);
       }
 
       const typedSnapshot = snapshot;
-      const checks = buildChecks(typedSnapshot, options.presetId);
-      const status = checks.contract.pass && checks.readability.pass && checks.coherence.pass ? 'pass' : 'fail';
+      const checks = buildChecks(typedSnapshot, options.presetId, overlayEvidence, browserEvidence);
+      const status = Object.values(checks).every((group) => group.pass) ? 'pass' : 'fail';
 
-        return {
-          status,
-          harness: {
-            mode: 'dev',
-            route: ROUTE_PATH,
-            baseUrl,
-            presetId: options.presetId,
-            presetLabel: preset.label,
-            expectedTableCount: preset.tableCount,
-            browser: 'chromium',
-            timeoutMs: options.timeoutMs,
-            headed: options.headed,
-          },
+      return {
+        status,
+        harness: createHarnessMetadata(),
         checks,
         snapshot: typedSnapshot,
+        evidence: {
+          snapshot: typedSnapshot,
+          overlay: overlayEvidence,
+          browser: browserEvidence,
+        },
       };
     } finally {
+      await context?.close();
       await browser.close();
     }
   } catch (error) {
     return {
       status: 'fail',
-      harness: {
-        mode: 'dev',
-        route: ROUTE_PATH,
-        baseUrl,
-        presetId: options.presetId,
-        presetLabel: preset.label,
-        expectedTableCount: preset.tableCount,
-        browser: 'chromium',
-        timeoutMs: options.timeoutMs,
-        headed: options.headed,
-      },
+      harness: createHarnessMetadata(),
       checks: {
         contract: { pass: false, results: [] },
         readability: { pass: false, results: [] },
         coherence: { pass: false, results: [] },
+        budgets: { pass: false, results: [] },
+        fatal: { pass: false, results: [] },
+      },
+      evidence: {
+        snapshot: null,
+        overlay: overlayEvidence,
+        browser: browserEvidence,
       },
       snapshot: null,
       failure: {

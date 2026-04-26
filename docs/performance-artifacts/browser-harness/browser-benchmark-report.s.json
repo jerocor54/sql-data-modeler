@@ -9,6 +9,7 @@
     "expectedTableCount": 50,
     "browser": "chromium",
     "timeoutMs": 45000,
+    "timeoutSource": "default",
     "headed": false
   },
   "checks": {
@@ -38,17 +39,17 @@
         {
           "name": "generated-at-string",
           "pass": true,
-          "detail": "generatedAt=2026-04-26T02:24:58.129Z"
+          "detail": "generatedAt=2026-04-26T16:14:02.674Z"
         },
         {
           "name": "timings-readable",
           "pass": true,
-          "detail": "timings={\"parseMs\":415.3,\"layoutMs\":699.6,\"renderApproxMs\":1437.6,\"totalMs\":2552.5}"
+          "detail": "timings={\"parseMs\":270.9,\"layoutMs\":721.4,\"renderApproxMs\":1441.1999999999998,\"totalMs\":2433.5}"
         },
         {
           "name": "long-task-shape-readable",
           "pass": true,
-          "detail": "longTasks={\"supported\":true,\"count\":3,\"maxDuration\":1375,\"lastDuration\":55,\"lastObservedAt\":1777170298126}"
+          "detail": "longTasks={\"supported\":true,\"count\":3,\"maxDuration\":1382,\"lastDuration\":52,\"lastObservedAt\":1777220042671}"
         }
       ]
     },
@@ -63,7 +64,7 @@
         {
           "name": "total-usable-available",
           "pass": true,
-          "detail": "totalMs=2552.5"
+          "detail": "totalMs=2433.5"
         },
         {
           "name": "preset-table-count-match",
@@ -79,18 +80,68 @@
           "name": "fallback-truth-aligned",
           "pass": true,
           "detail": "fallbackActive=false · expectedPresetBoundary=safe"
+        },
+        {
+          "name": "overlay-fallback-label-aligned",
+          "pass": true,
+          "detail": "overlay=fallback inactivo · snapshot=fallback inactivo"
+        },
+        {
+          "name": "overlay-status-label-aligned",
+          "pass": true,
+          "detail": "overlay=ready-non-fallback · snapshot=ready-non-fallback"
+        }
+      ]
+    },
+    "budgets": {
+      "pass": true,
+      "results": [
+        {
+          "name": "snapshot-total-ms-within-ceiling",
+          "pass": true,
+          "detail": "totalMs=2433.5 · ceilingMs=45000"
+        },
+        {
+          "name": "snapshot-status-label-match",
+          "pass": true,
+          "detail": "statusLabel=ready-non-fallback · expected=ready-non-fallback"
+        },
+        {
+          "name": "snapshot-requires-non-fallback",
+          "pass": true,
+          "detail": "fallbackActive=false · boundary=non-fallback · layoutMode=elk"
+        }
+      ]
+    },
+    "fatal": {
+      "pass": true,
+      "results": [
+        {
+          "name": "page-errors-empty",
+          "pass": true,
+          "detail": "[]"
+        },
+        {
+          "name": "console-errors-empty",
+          "pass": true,
+          "detail": "[]"
+        },
+        {
+          "name": "request-failures-empty",
+          "pass": true,
+          "detail": "[]"
         }
       ]
     }
   },
   "snapshot": {
     "schemaVersion": "phase-7-dev-v1",
-    "generatedAt": "2026-04-26T02:24:58.129Z",
+    "generatedAt": "2026-04-26T16:14:02.674Z",
     "timings": {
-      "parseMs": 415.3,
-      "layoutMs": 699.6,
-      "renderApproxMs": 1437.6,
-      "totalMs": 2552.5
+      "parseMs": 270.9,
+      "layoutMs": 721.4,
+      "renderApproxMs": 1441.1999999999998,
+      "totalMs": 2433.5
     },
     "graph": {
       "nodes": {
@@ -118,15 +169,79 @@
     },
     "diagnostics": {
       "fallbackActive": false,
+      "fallbackBoundary": "non-fallback",
+      "fallbackLabel": "fallback inactivo",
+      "statusLabel": "ready-non-fallback",
       "layoutWarning": null,
       "layoutDiagnostics": null
     },
     "longTasks": {
       "supported": true,
       "count": 3,
-      "maxDuration": 1375,
-      "lastDuration": 55,
-      "lastObservedAt": 1777170298126
+      "maxDuration": 1382,
+      "lastDuration": 52,
+      "lastObservedAt": 1777220042671
+    }
+  },
+  "evidence": {
+    "snapshot": {
+      "schemaVersion": "phase-7-dev-v1",
+      "generatedAt": "2026-04-26T16:14:02.674Z",
+      "timings": {
+        "parseMs": 270.9,
+        "layoutMs": 721.4,
+        "renderApproxMs": 1441.1999999999998,
+        "totalMs": 2433.5
+      },
+      "graph": {
+        "nodes": {
+          "presented": 50,
+          "total": 50
+        },
+        "edges": {
+          "presented": 78,
+          "total": 78
+        }
+      },
+      "model": {
+        "sqlTextLength": 17997,
+        "tableCount": 50,
+        "relationshipCount": 78
+      },
+      "presentation": {
+        "automatic": true,
+        "layoutEngine": "elk",
+        "layoutMode": "elk",
+        "layoutPending": false,
+        "mode": "full",
+        "strategy": "normal",
+        "viewMode": "split"
+      },
+      "diagnostics": {
+        "fallbackActive": false,
+        "fallbackBoundary": "non-fallback",
+        "fallbackLabel": "fallback inactivo",
+        "statusLabel": "ready-non-fallback",
+        "layoutWarning": null,
+        "layoutDiagnostics": null
+      },
+      "longTasks": {
+        "supported": true,
+        "count": 3,
+        "maxDuration": 1382,
+        "lastDuration": 52,
+        "lastObservedAt": 1777220042671
+      }
+    },
+    "overlay": {
+      "fallbackLabel": "fallback inactivo",
+      "statusLabel": "ready-non-fallback",
+      "layoutWarning": null
+    },
+    "browser": {
+      "pageErrors": [],
+      "consoleErrors": [],
+      "requestFailures": []
     }
   }
 }

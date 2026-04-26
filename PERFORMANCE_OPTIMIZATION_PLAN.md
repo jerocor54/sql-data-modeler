@@ -736,7 +736,7 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
    - [x] tamaño del modelo
 3. Registrar long tasks. ✅ Cerrado en este slice con observación DEV-only degradable y resumen compacto en overlay.
 4. Registrar fallbacks activados. ✅ Cerrado en este slice con estado + diagnósticos visibles en overlay.
-5. Definir gates mínimos para no aceptar regresiones graves. ◑ Slice honesto actual: gate CLI sobre baseline versionado + harness browser-backed mínimo para `/sql-data-modeler/benchmark`; siguen pendientes los gates browser más amplios (UX/FPS/overlay general).
+5. Definir gates mínimos para no aceptar regresiones graves. ◑ Slice honesto actual: gate CLI sobre baseline versionado + budgets/gates browser-backed mínimos para `S` y `M` en `/sql-data-modeler/benchmark`; siguen pendientes los budgets/gates browser más amplios (UX/FPS/overlay general).
 
 ## Validación
 
@@ -746,6 +746,7 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
 - [x] la shape/versionado/caveats de ese snapshot ya quedaron documentados explícitamente en `docs/browser-performance-snapshot-contract.md`.
 - [x] la política del harness browser-backed futuro (ruta objetivo, timing de captura, categorías leídas y alcance honesto de gates) ya quedó documentada en `docs/browser-performance-harness-policy.md`.
 - [x] ya existe un harness browser-backed mínimo que valida `S` y `M` sobre `/sql-data-modeler/benchmark`, persiste reportes estables por preset y puede ejecutarse como workflow repo-level.
+- [x] ya existe una primera capa de browser-backed budget/fatal gates semánticos para `S` y `M` sobre la benchmark route.
 - [ ] seguimos sin gates browser-backed amplios para UX/FPS/overlay real.
 
 ## Criterio de salida
@@ -765,10 +766,11 @@ Este primer slice de Fase 7 deja resuelto SOLO lo siguiente:
 - política explícita del harness browser-backed en `docs/browser-performance-harness-policy.md` para fijar la URL local real `/sql-data-modeler/benchmark`, filosofía de captura y alcance honesto antes de ampliar gates
 - harness browser-backed mínimo real en `scripts/performance/runBrowserBenchmarkHarness.ts` con corridas validadas para `S` y `M`
 - workflow repo-level `npm run benchmark:browser:assert` que ejecuta `S` y `M` en secuencia y conserva artefactos JSON estables por preset
+- capa machine-readable de browser budget policy (`scripts/performance/browserBudgetPolicy.ts`) y `checks.budgets` / `checks.fatal` sobre el harness actual
 
 ### Pendiente real de Fase 7
 
-- ampliar los gates browser-backed más allá del scope mínimo actual (`S`/`M` + contract/readability/coherence)
+- ampliar los gates browser-backed más allá del scope mínimo actual (`S`/`M` + contract/readability/coherence/budgets/fatal)
 - cubrir UX/FPS/overlay general con budgets browser honestos, no inferidos desde CLI
 - ampliar el criterio de comparación repetible más allá de la evidencia CLI versionada y del harness mínimo actual
 - decidir si el siguiente paso real es endurecer budgets browser-backed o abrir Fase 8
@@ -804,6 +806,14 @@ Además del gate CLI, del contrato del snapshot y de la política ya entregados,
 - `scripts/performance/runBrowserBenchmarkHarness.ts` ya corre contra la URL real anunciada por Astro, maneja drift de puerto, usa timeouts honestos por preset (`S`/`M`) y persiste un reporte JSON estable por preset
 - `scripts/performance/assertBrowserBenchmarkHarness.ts` convierte ese harness mínimo en un workflow repo-level que ejecuta `S` y `M` en secuencia y falla si cualquiera rompe la verdad semántica actual
 - la evidencia browser-backed mínima ya no es solo teoría: `S` valida camino ELK soportado y `M` valida frontera timeout/fallback con `layoutMode=fallback`, `fallbackActive=true` y `ELK_LAYOUT_TIMEOUT`
+
+### Slice honesto adicional cerrado ahora — budget gates browser-backed mínimos
+
+Además del harness mínimo ya operativo, ahora queda resuelto ESTE pedazo puntual de Fase 7:
+
+- `scripts/performance/browserBudgetPolicy.ts` define ceilings/política tipada y asimétrica para `S` y `M`
+- el harness ya emite `checks.budgets` y `checks.fatal` sin dejar de usar el snapshot como source of truth principal
+- `npm run benchmark:browser:assert` ya valida no solo contract/readability/coherence, sino también budgets/fatal gates mínimos sobre la benchmark route
 
 ---
 

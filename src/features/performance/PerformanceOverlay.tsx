@@ -2,6 +2,7 @@ import type { LayoutFallbackDiagnostics } from '../auto-layout/layoutWorkerProto
 import type { LayoutEngineMode } from '../auto-layout/useAutoLayout';
 import type { DiagramPresentationMode, DiagramPresentationStrategy } from '../diagram-presentation/useDiagramPresentation';
 import type { DiagramBenchmarkResult } from './diagramPerformance';
+import { deriveBrowserPerformanceDiagnostics } from './browserPerformanceSnapshot';
 import type { LongTaskSummary } from './useLongTaskObserver';
 
 interface PerformanceOverlayProps {
@@ -102,7 +103,11 @@ export default function PerformanceOverlay({
   const parseMs = latestResult?.parseMs ?? null;
   const layoutMs = latestResult?.layoutMs ?? null;
   const renderMs = latestResult ? Math.max(0, latestResult.totalMs - latestResult.parseMs - latestResult.layoutMs) : null;
-  const fallbackActive = layoutMode === 'fallback' || Boolean(layoutDiagnostics);
+  const browserDiagnostics = deriveBrowserPerformanceDiagnostics({
+    layoutDiagnostics,
+    layoutMode,
+    layoutPending,
+  });
 
   return (
     <aside
@@ -125,9 +130,11 @@ export default function PerformanceOverlay({
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
         <div style={{ display: 'grid', gap: 2 }}>
           <span className="overlay-label">Dev performance</span>
-          <strong>Fase 7 · observabilidad base</strong>
+          <strong data-perf-status-label={browserDiagnostics.statusLabel}>Fase 7 · {browserDiagnostics.statusLabel}</strong>
         </div>
-        {layoutPending && <span className="status-pill">running</span>}
+        <span className="status-pill" data-perf-status-pill={browserDiagnostics.statusLabel}>
+          {browserDiagnostics.statusLabel}
+        </span>
       </div>
 
       <div style={{ display: 'grid', gap: 6 }}>
@@ -151,11 +158,17 @@ export default function PerformanceOverlay({
       </div>
 
       <div style={{ display: 'grid', gap: 4, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-        <span style={{ color: fallbackActive ? '#f59e0b' : 'var(--text-muted)' }}>
-          fallback {fallbackActive ? 'activo' : 'inactivo'}
+        <span
+          data-perf-fallback-label={browserDiagnostics.fallbackLabel}
+          style={{ color: browserDiagnostics.fallbackActive ? '#f59e0b' : 'var(--text-muted)' }}
+        >
+          {browserDiagnostics.fallbackLabel}
         </span>
         {(layoutWarning || layoutDiagnostics) && (
-          <span style={{ color: 'var(--text-muted)', wordBreak: 'break-word' }}>
+          <span
+            data-perf-layout-warning={layoutWarning || formatDiagnostics(layoutDiagnostics)}
+            style={{ color: 'var(--text-muted)', wordBreak: 'break-word' }}
+          >
             {layoutWarning ? `${layoutWarning} · ` : ''}
             {formatDiagnostics(layoutDiagnostics)}
           </span>

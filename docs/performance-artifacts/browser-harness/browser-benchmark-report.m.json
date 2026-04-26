@@ -9,6 +9,7 @@
     "expectedTableCount": 200,
     "browser": "chromium",
     "timeoutMs": 120000,
+    "timeoutSource": "default",
     "headed": false
   },
   "checks": {
@@ -38,17 +39,17 @@
         {
           "name": "generated-at-string",
           "pass": true,
-          "detail": "generatedAt=2026-04-26T02:26:49.867Z"
+          "detail": "generatedAt=2026-04-26T16:15:47.368Z"
         },
         {
           "name": "timings-readable",
           "pass": true,
-          "detail": "timings={\"parseMs\":125.6,\"layoutMs\":3103,\"renderApproxMs\":99068.9,\"totalMs\":102297.5}"
+          "detail": "timings={\"parseMs\":231.2,\"layoutMs\":3010.2,\"renderApproxMs\":92269.70000000001,\"totalMs\":95511.1}"
         },
         {
           "name": "long-task-shape-readable",
           "pass": true,
-          "detail": "longTasks={\"supported\":true,\"count\":3,\"maxDuration\":98965,\"lastDuration\":97,\"lastObservedAt\":1777170409866}"
+          "detail": "longTasks={\"supported\":true,\"count\":3,\"maxDuration\":92169,\"lastDuration\":94,\"lastObservedAt\":1777220147367}"
         }
       ]
     },
@@ -63,7 +64,7 @@
         {
           "name": "total-usable-available",
           "pass": true,
-          "detail": "totalMs=102297.5"
+          "detail": "totalMs=95511.1"
         },
         {
           "name": "preset-table-count-match",
@@ -79,18 +80,68 @@
           "name": "fallback-truth-aligned",
           "pass": true,
           "detail": "fallbackActive=true · expectedPresetBoundary=fallback-only"
+        },
+        {
+          "name": "overlay-fallback-label-aligned",
+          "pass": true,
+          "detail": "overlay=fallback activo · snapshot=fallback activo"
+        },
+        {
+          "name": "overlay-status-label-aligned",
+          "pass": true,
+          "detail": "overlay=ready-fallback-boundary · snapshot=ready-fallback-boundary"
+        }
+      ]
+    },
+    "budgets": {
+      "pass": true,
+      "results": [
+        {
+          "name": "snapshot-total-ms-within-ceiling",
+          "pass": true,
+          "detail": "totalMs=95511.1 · ceilingMs=120000"
+        },
+        {
+          "name": "snapshot-status-label-match",
+          "pass": true,
+          "detail": "statusLabel=ready-fallback-boundary · expected=ready-fallback-boundary"
+        },
+        {
+          "name": "snapshot-requires-fallback-boundary",
+          "pass": true,
+          "detail": "fallbackActive=true · boundary=fallback-boundary · layoutMode=fallback · warning=EL layout tardó demasiado; se activó el modo rápido de respaldo."
+        }
+      ]
+    },
+    "fatal": {
+      "pass": true,
+      "results": [
+        {
+          "name": "page-errors-empty",
+          "pass": true,
+          "detail": "[]"
+        },
+        {
+          "name": "console-errors-empty",
+          "pass": true,
+          "detail": "[]"
+        },
+        {
+          "name": "request-failures-empty",
+          "pass": true,
+          "detail": "[]"
         }
       ]
     }
   },
   "snapshot": {
     "schemaVersion": "phase-7-dev-v1",
-    "generatedAt": "2026-04-26T02:26:49.867Z",
+    "generatedAt": "2026-04-26T16:15:47.368Z",
     "timings": {
-      "parseMs": 125.6,
-      "layoutMs": 3103,
-      "renderApproxMs": 99068.9,
-      "totalMs": 102297.5
+      "parseMs": 231.2,
+      "layoutMs": 3010.2,
+      "renderApproxMs": 92269.70000000001,
+      "totalMs": 95511.1
     },
     "graph": {
       "nodes": {
@@ -118,6 +169,9 @@
     },
     "diagnostics": {
       "fallbackActive": true,
+      "fallbackBoundary": "fallback-boundary",
+      "fallbackLabel": "fallback activo",
+      "statusLabel": "ready-fallback-boundary",
       "layoutWarning": "EL layout tardó demasiado; se activó el modo rápido de respaldo.",
       "layoutDiagnostics": {
         "cause": "timeout",
@@ -130,9 +184,76 @@
     "longTasks": {
       "supported": true,
       "count": 3,
-      "maxDuration": 98965,
-      "lastDuration": 97,
-      "lastObservedAt": 1777170409866
+      "maxDuration": 92169,
+      "lastDuration": 94,
+      "lastObservedAt": 1777220147367
+    }
+  },
+  "evidence": {
+    "snapshot": {
+      "schemaVersion": "phase-7-dev-v1",
+      "generatedAt": "2026-04-26T16:15:47.368Z",
+      "timings": {
+        "parseMs": 231.2,
+        "layoutMs": 3010.2,
+        "renderApproxMs": 92269.70000000001,
+        "totalMs": 95511.1
+      },
+      "graph": {
+        "nodes": {
+          "presented": 200,
+          "total": 200
+        },
+        "edges": {
+          "presented": 180,
+          "total": 325
+        }
+      },
+      "model": {
+        "sqlTextLength": 73527,
+        "tableCount": 200,
+        "relationshipCount": 326
+      },
+      "presentation": {
+        "automatic": true,
+        "layoutEngine": "fallback",
+        "layoutMode": "fallback",
+        "layoutPending": false,
+        "mode": "overview",
+        "strategy": "large",
+        "viewMode": "split"
+      },
+      "diagnostics": {
+        "fallbackActive": true,
+        "fallbackBoundary": "fallback-boundary",
+        "fallbackLabel": "fallback activo",
+        "statusLabel": "ready-fallback-boundary",
+        "layoutWarning": "EL layout tardó demasiado; se activó el modo rápido de respaldo.",
+        "layoutDiagnostics": {
+          "cause": "timeout",
+          "provenance": {
+            "stage": "elk-error",
+            "message": "ELK_LAYOUT_TIMEOUT"
+          }
+        }
+      },
+      "longTasks": {
+        "supported": true,
+        "count": 3,
+        "maxDuration": 92169,
+        "lastDuration": 94,
+        "lastObservedAt": 1777220147367
+      }
+    },
+    "overlay": {
+      "fallbackLabel": "fallback activo",
+      "statusLabel": "ready-fallback-boundary",
+      "layoutWarning": "EL layout tardó demasiado; se activó el modo rápido de respaldo."
+    },
+    "browser": {
+      "pageErrors": [],
+      "consoleErrors": [],
+      "requestFailures": []
     }
   }
 }
