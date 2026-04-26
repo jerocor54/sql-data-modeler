@@ -239,8 +239,8 @@ Cada fase se ejecuta así:
 | 3 | Estado, render y React Flow | **Cerrada con caveat menor** |
 | 4 | UX para modelos gigantes | **Cerrada en código con caveats de documentación** |
 | 5 | Memoria, cachés y payloads | **Cerrada con follow-ups explícitos ya resueltos** |
-| 6 | Astro shell, carga inicial y bundles | **En curso — lazy-load real de benchmark/export + Monaco aplicado** |
-| 7 | Observabilidad y reglas anti-regresión | En curso — overlay dev base + fallback visibility cerrados |
+| 6 | Astro shell, carga inicial y bundles | **Pausada honestamente — startup deferrals principales aplicadas; split de settings diferido** |
+| 7 | Observabilidad y reglas anti-regresión | **En curso — harness browser-backed mínimo operativo (`S` + `M`)** |
 | 8 | Exportación escalable y cierre | Pendiente |
 
 ---
