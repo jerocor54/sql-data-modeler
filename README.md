@@ -68,6 +68,7 @@ Todos los comandos se ejecutan desde la raíz del proyecto.
 | `npx tsc --noEmit` | Valida tipos sin generar archivos |
 | `npm run benchmark:phase0 -- --output docs/performance-baseline-results.phase-0.json` | Corre el baseline reproducible de parse + layout y guarda un reporte JSON |
 | `npm run benchmark:browser -- --preset=s` | Levanta el DEV server, sigue la URL real anunciada por Astro, abre `/sql-data-modeler/benchmark`, captura el snapshot DEV honesto y persiste el reporte JSON estable en `docs/performance-artifacts/browser-harness/` |
+| `npm run benchmark:browser:assert` | Ejecuta el harness browser-backed existente para `s` y `m` en secuencia, conserva los reportes JSON estables por preset y falla si cualquiera de las dos corridas falla |
 
 ## Documentación del proyecto
 

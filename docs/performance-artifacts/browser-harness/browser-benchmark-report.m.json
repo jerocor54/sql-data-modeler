@@ -1,0 +1,138 @@
+{
+  "status": "pass",
+  "harness": {
+    "mode": "dev",
+    "route": "/sql-data-modeler/benchmark",
+    "baseUrl": "http://127.0.0.1:4322",
+    "presetId": "m",
+    "presetLabel": "M",
+    "expectedTableCount": 200,
+    "browser": "chromium",
+    "timeoutMs": 120000,
+    "headed": false
+  },
+  "checks": {
+    "contract": {
+      "pass": true,
+      "results": [
+        {
+          "name": "snapshot-key-present",
+          "pass": true,
+          "detail": "Se leyó __SQL_DATA_MODELER_PERF__ desde la app en DEV."
+        },
+        {
+          "name": "schema-version",
+          "pass": true,
+          "detail": "schemaVersion=phase-7-dev-v1"
+        },
+        {
+          "name": "top-level-categories",
+          "pass": true,
+          "detail": "El snapshot expone timings, graph, model, presentation, diagnostics y longTasks."
+        }
+      ]
+    },
+    "readability": {
+      "pass": true,
+      "results": [
+        {
+          "name": "generated-at-string",
+          "pass": true,
+          "detail": "generatedAt=2026-04-26T02:26:49.867Z"
+        },
+        {
+          "name": "timings-readable",
+          "pass": true,
+          "detail": "timings={\"parseMs\":125.6,\"layoutMs\":3103,\"renderApproxMs\":99068.9,\"totalMs\":102297.5}"
+        },
+        {
+          "name": "long-task-shape-readable",
+          "pass": true,
+          "detail": "longTasks={\"supported\":true,\"count\":3,\"maxDuration\":98965,\"lastDuration\":97,\"lastObservedAt\":1777170409866}"
+        }
+      ]
+    },
+    "coherence": {
+      "pass": true,
+      "results": [
+        {
+          "name": "layout-settled",
+          "pass": true,
+          "detail": "layoutPending=false"
+        },
+        {
+          "name": "total-usable-available",
+          "pass": true,
+          "detail": "totalMs=102297.5"
+        },
+        {
+          "name": "preset-table-count-match",
+          "pass": true,
+          "detail": "snapshot=200 · expected=200"
+        },
+        {
+          "name": "graph-counts-monotonic",
+          "pass": true,
+          "detail": "nodes=200/200 · edges=180/325"
+        },
+        {
+          "name": "fallback-truth-aligned",
+          "pass": true,
+          "detail": "fallbackActive=true · expectedPresetBoundary=fallback-only"
+        }
+      ]
+    }
+  },
+  "snapshot": {
+    "schemaVersion": "phase-7-dev-v1",
+    "generatedAt": "2026-04-26T02:26:49.867Z",
+    "timings": {
+      "parseMs": 125.6,
+      "layoutMs": 3103,
+      "renderApproxMs": 99068.9,
+      "totalMs": 102297.5
+    },
+    "graph": {
+      "nodes": {
+        "presented": 200,
+        "total": 200
+      },
+      "edges": {
+        "presented": 180,
+        "total": 325
+      }
+    },
+    "model": {
+      "sqlTextLength": 73527,
+      "tableCount": 200,
+      "relationshipCount": 326
+    },
+    "presentation": {
+      "automatic": true,
+      "layoutEngine": "fallback",
+      "layoutMode": "fallback",
+      "layoutPending": false,
+      "mode": "overview",
+      "strategy": "large",
+      "viewMode": "split"
+    },
+    "diagnostics": {
+      "fallbackActive": true,
+      "layoutWarning": "EL layout tardó demasiado; se activó el modo rápido de respaldo.",
+      "layoutDiagnostics": {
+        "cause": "timeout",
+        "provenance": {
+          "stage": "elk-error",
+          "message": "ELK_LAYOUT_TIMEOUT"
+        }
+      }
+    },
+    "longTasks": {
+      "supported": true,
+      "count": 3,
+      "maxDuration": 98965,
+      "lastDuration": 97,
+      "lastObservedAt": 1777170409866
+    }
+  }
+}

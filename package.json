@@ -13,7 +13,8 @@
     "benchmark:phase0": "tsx scripts/performance/runPhase0Baseline.ts",
     "benchmark:phase0:assert": "tsx scripts/performance/assertPhase0Baseline.ts",
     "benchmark:phase3-canvas": "tsx scripts/performance/runPhase3CanvasSmoke.ts",
-    "benchmark:browser": "tsx scripts/performance/runBrowserBenchmarkHarness.ts"
+    "benchmark:browser": "tsx scripts/performance/runBrowserBenchmarkHarness.ts",
+    "benchmark:browser:assert": "tsx scripts/performance/assertBrowserBenchmarkHarness.ts"
   },
   "dependencies": {
     "@astrojs/react": "^5.0.3",

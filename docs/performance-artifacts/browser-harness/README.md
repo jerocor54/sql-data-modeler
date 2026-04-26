@@ -23,6 +23,14 @@ Desde repo root:
 npm run benchmark:browser -- --preset=s
 ```
 
+Workflow repo-level para dejar ambos archivos estables actualizados de una sola vez:
+
+```bash
+npm run benchmark:browser:assert
+```
+
+Ese comando corre el harness existente primero para `s` y después para `m`. Si cualquiera de las dos corridas falla, el workflow completo falla.
+
 O para el borde honesto actual:
 
 ```bash

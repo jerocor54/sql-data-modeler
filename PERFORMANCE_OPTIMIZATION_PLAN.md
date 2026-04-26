@@ -736,7 +736,7 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
    - [x] tamaño del modelo
 3. Registrar long tasks. ✅ Cerrado en este slice con observación DEV-only degradable y resumen compacto en overlay.
 4. Registrar fallbacks activados. ✅ Cerrado en este slice con estado + diagnósticos visibles en overlay.
-5. Definir gates mínimos para no aceptar regresiones graves. ◑ Slice honesto actual: gate CLI sobre baseline versionado + seam DEV-only de snapshot browser-readable + política documentada para harness browser-backed futuro; la automatización/gates browser-backed siguen pendientes.
+5. Definir gates mínimos para no aceptar regresiones graves. ◑ Slice honesto actual: gate CLI sobre baseline versionado + harness browser-backed mínimo para `/sql-data-modeler/benchmark`; siguen pendientes los gates browser más amplios (UX/FPS/overlay general).
 
 ## Validación
 
@@ -745,7 +745,8 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
 - [x] existe un contrato DEV-only serializable en `window.__SQL_DATA_MODELER_PERF__` para que un harness browser-backed futuro lea métricas reales sin acoplarse a internals React.
 - [x] la shape/versionado/caveats de ese snapshot ya quedaron documentados explícitamente en `docs/browser-performance-snapshot-contract.md`.
 - [x] la política del harness browser-backed futuro (ruta objetivo, timing de captura, categorías leídas y alcance honesto de gates) ya quedó documentada en `docs/browser-performance-harness-policy.md`.
-- [ ] seguimos sin gates browser-backed para UX/FPS/overlay real.
+- [x] ya existe un harness browser-backed mínimo que valida `S` y `M` sobre `/sql-data-modeler/benchmark`, persiste reportes estables por preset y puede ejecutarse como workflow repo-level.
+- [ ] seguimos sin gates browser-backed amplios para UX/FPS/overlay real.
 
 ## Criterio de salida
 
@@ -762,13 +763,15 @@ Este primer slice de Fase 7 deja resuelto SOLO lo siguiente:
 - seam DEV-only bajo `src/features/performance/browserPerformanceSnapshot.ts` que publica un snapshot serializable y read-only en `window.__SQL_DATA_MODELER_PERF__`
 - contrato explícito del snapshot DEV-only en `docs/browser-performance-snapshot-contract.md` para destrabar un harness browser-backed futuro sin inventar compatibilidad implícita
 - política explícita del harness browser-backed en `docs/browser-performance-harness-policy.md` para fijar la URL local real `/sql-data-modeler/benchmark`, filosofía de captura y alcance honesto antes de ampliar gates
+- harness browser-backed mínimo real en `scripts/performance/runBrowserBenchmarkHarness.ts` con corridas validadas para `S` y `M`
+- workflow repo-level `npm run benchmark:browser:assert` que ejecuta `S` y `M` en secuencia y conserva artefactos JSON estables por preset
 
 ### Pendiente real de Fase 7
 
-- extender los gates desde la evidencia CLI hacia `/sql-data-modeler/benchmark` y browser real sin caer en teatro
-- cubrir UX/FPS/overlay con un harness browser-backed honesto
-- ampliar el criterio de comparación repetible más allá de la evidencia CLI versionada
-- convertir la política documentada en harness/automatización real y recién después endurecer budgets/pass-fail browser-backed honestos
+- ampliar los gates browser-backed más allá del scope mínimo actual (`S`/`M` + contract/readability/coherence)
+- cubrir UX/FPS/overlay general con budgets browser honestos, no inferidos desde CLI
+- ampliar el criterio de comparación repetible más allá de la evidencia CLI versionada y del harness mínimo actual
+- decidir si el siguiente paso real es endurecer budgets browser-backed o abrir Fase 8
 
 ### Slice honesto adicional cerrado ahora
 
@@ -793,6 +796,14 @@ Además del gate CLI y del contrato del snapshot ya entregados, ahora queda resu
 - `docs/browser-performance-harness-policy.md` fija que el primer target local del harness debe ser `/sql-data-modeler/benchmark` en DEV con contextos explícitos como `S` y `M`
 - la política deja escrito que la captura debe esperar readiness explícita y el punto honesto de "usable" ya documentado, en vez de depender de sleeps arbitrarios
 - también deja delimitado qué debe leer primero (`timings`, `graph`, `model`, `presentation`, `diagnostics`, `longTasks`) y qué NO debe fingir cubrir todavía (FPS/UX general/producción/cross-browser)
+
+### Slice honesto adicional cerrado ahora — harness browser-backed mínimo operativo
+
+Además del gate CLI, del contrato del snapshot y de la política ya entregados, ahora queda resuelto ESTE pedazo puntual de Fase 7:
+
+- `scripts/performance/runBrowserBenchmarkHarness.ts` ya corre contra la URL real anunciada por Astro, maneja drift de puerto, usa timeouts honestos por preset (`S`/`M`) y persiste un reporte JSON estable por preset
+- `scripts/performance/assertBrowserBenchmarkHarness.ts` convierte ese harness mínimo en un workflow repo-level que ejecuta `S` y `M` en secuencia y falla si cualquiera rompe la verdad semántica actual
+- la evidencia browser-backed mínima ya no es solo teoría: `S` valida camino ELK soportado y `M` valida frontera timeout/fallback con `layoutMode=fallback`, `fallbackActive=true` y `ELK_LAYOUT_TIMEOUT`
 
 ---
 

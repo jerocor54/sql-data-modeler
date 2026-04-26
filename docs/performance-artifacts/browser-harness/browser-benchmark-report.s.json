@@ -1,0 +1,132 @@
+{
+  "status": "pass",
+  "harness": {
+    "mode": "dev",
+    "route": "/sql-data-modeler/benchmark",
+    "baseUrl": "http://127.0.0.1:4322",
+    "presetId": "s",
+    "presetLabel": "S",
+    "expectedTableCount": 50,
+    "browser": "chromium",
+    "timeoutMs": 45000,
+    "headed": false
+  },
+  "checks": {
+    "contract": {
+      "pass": true,
+      "results": [
+        {
+          "name": "snapshot-key-present",
+          "pass": true,
+          "detail": "Se leyó __SQL_DATA_MODELER_PERF__ desde la app en DEV."
+        },
+        {
+          "name": "schema-version",
+          "pass": true,
+          "detail": "schemaVersion=phase-7-dev-v1"
+        },
+        {
+          "name": "top-level-categories",
+          "pass": true,
+          "detail": "El snapshot expone timings, graph, model, presentation, diagnostics y longTasks."
+        }
+      ]
+    },
+    "readability": {
+      "pass": true,
+      "results": [
+        {
+          "name": "generated-at-string",
+          "pass": true,
+          "detail": "generatedAt=2026-04-26T02:24:58.129Z"
+        },
+        {
+          "name": "timings-readable",
+          "pass": true,
+          "detail": "timings={\"parseMs\":415.3,\"layoutMs\":699.6,\"renderApproxMs\":1437.6,\"totalMs\":2552.5}"
+        },
+        {
+          "name": "long-task-shape-readable",
+          "pass": true,
+          "detail": "longTasks={\"supported\":true,\"count\":3,\"maxDuration\":1375,\"lastDuration\":55,\"lastObservedAt\":1777170298126}"
+        }
+      ]
+    },
+    "coherence": {
+      "pass": true,
+      "results": [
+        {
+          "name": "layout-settled",
+          "pass": true,
+          "detail": "layoutPending=false"
+        },
+        {
+          "name": "total-usable-available",
+          "pass": true,
+          "detail": "totalMs=2552.5"
+        },
+        {
+          "name": "preset-table-count-match",
+          "pass": true,
+          "detail": "snapshot=50 · expected=50"
+        },
+        {
+          "name": "graph-counts-monotonic",
+          "pass": true,
+          "detail": "nodes=50/50 · edges=78/78"
+        },
+        {
+          "name": "fallback-truth-aligned",
+          "pass": true,
+          "detail": "fallbackActive=false · expectedPresetBoundary=safe"
+        }
+      ]
+    }
+  },
+  "snapshot": {
+    "schemaVersion": "phase-7-dev-v1",
+    "generatedAt": "2026-04-26T02:24:58.129Z",
+    "timings": {
+      "parseMs": 415.3,
+      "layoutMs": 699.6,
+      "renderApproxMs": 1437.6,
+      "totalMs": 2552.5
+    },
+    "graph": {
+      "nodes": {
+        "presented": 50,
+        "total": 50
+      },
+      "edges": {
+        "presented": 78,
+        "total": 78
+      }
+    },
+    "model": {
+      "sqlTextLength": 17997,
+      "tableCount": 50,
+      "relationshipCount": 78
+    },
+    "presentation": {
+      "automatic": true,
+      "layoutEngine": "elk",
+      "layoutMode": "elk",
+      "layoutPending": false,
+      "mode": "full",
+      "strategy": "normal",
+      "viewMode": "split"
+    },
+    "diagnostics": {
+      "fallbackActive": false,
+      "layoutWarning": null,
+      "layoutDiagnostics": null
+    },
+    "longTasks": {
+      "supported": true,
+      "count": 3,
+      "maxDuration": 1375,
+      "lastDuration": 55,
+      "lastObservedAt": 1777170298126
+    }
+  }
+}

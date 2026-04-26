@@ -107,6 +107,14 @@ Run the minimal browser harness from repo root:
 npm run benchmark:browser -- --preset=s
 ```
 
+Repo-level assert workflow:
+
+```bash
+npm run benchmark:browser:assert
+```
+
+That workflow reuses the same harness twice — first `s`, then `m` — keeps the same stable artifact files per preset, and exits non-zero if either semantic harness run fails.
+
 That command now also persists the same JSON report to a stable artifact path:
 
 ```text
@@ -132,6 +140,7 @@ Optional flags:
 - `--timeout-ms=<ms>` still overrides the preset default when you want a custom bounded wait guard.
 - `--output=<path>` overrides the default artifact path when you want to persist the JSON report somewhere else.
 - `--headed` to watch Chromium run locally.
+- `benchmark:browser:assert` forwards shared flags like `--headed`, `--host`, `--port`, and `--timeout-ms`, but intentionally rejects `--preset` and `--output` because that repo-level workflow exists to keep the fixed `s` + `m` sequence and the stable artifact paths honest.
 
 Artifact note:
 
