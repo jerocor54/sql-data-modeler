@@ -107,10 +107,22 @@ Run the minimal browser harness from repo root:
 npm run benchmark:browser -- --preset=s
 ```
 
+That command now also persists the same JSON report to a stable artifact path:
+
+```text
+docs/performance-artifacts/browser-harness/browser-benchmark-report.s.json
+```
+
 Optional boundary check:
 
 ```bash
 npm run benchmark:browser -- --preset=m
+```
+
+Which persists to:
+
+```text
+docs/performance-artifacts/browser-harness/browser-benchmark-report.m.json
 ```
 
 Optional flags:
@@ -118,7 +130,14 @@ Optional flags:
 - the harness now reads Astro's announced DEV URL, so if `4321` is busy and Astro drifts to another free port, the browser run follows that real URL instead of staying stale on the requested one.
 - default bounded wait guard is preset-aware: `S` keeps `45000 ms`, while `M` uses `120000 ms` by default because the current browser-backed support-boundary capture has already shown honest fallback-ready completion closer to ~94-100s+ than to `90000 ms`.
 - `--timeout-ms=<ms>` still overrides the preset default when you want a custom bounded wait guard.
+- `--output=<path>` overrides the default artifact path when you want to persist the JSON report somewhere else.
 - `--headed` to watch Chromium run locally.
+
+Artifact note:
+
+- default artifact names are stable and overwrite-in-place by preset on purpose;
+- the harness still prints the same JSON to stdout, but now it also writes that exact report to disk for repeatable evidence capture;
+- if you need versioned evidence for a specific slice, copy the stable file into the relevant evidence package after the run.
 
 ### What this harness actually does
 
@@ -132,7 +151,8 @@ Optional flags:
    - `presentation.layoutPending === false`,
    - `timings.totalMs !== null`.
 6. Reads `window.__SQL_DATA_MODELER_PERF__`.
-7. Prints structured JSON with pass/fail for contract, readability, and coherence only.
+7. Writes structured JSON to a stable artifact file for the selected preset.
+8. Prints the same structured JSON with pass/fail for contract, readability, and coherence only.
 
 ### What this harness intentionally does NOT do
 

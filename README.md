@@ -67,7 +67,7 @@ Todos los comandos se ejecutan desde la raíz del proyecto.
 | `npm run preview` | Previsualiza el build |
 | `npx tsc --noEmit` | Valida tipos sin generar archivos |
 | `npm run benchmark:phase0 -- --output docs/performance-baseline-results.phase-0.json` | Corre el baseline reproducible de parse + layout y guarda un reporte JSON |
-| `npm run benchmark:browser -- --preset=s` | Levanta el DEV server, sigue la URL real anunciada por Astro, abre `/sql-data-modeler/benchmark` con Playwright y captura el snapshot DEV honesto |
+| `npm run benchmark:browser -- --preset=s` | Levanta el DEV server, sigue la URL real anunciada por Astro, abre `/sql-data-modeler/benchmark`, captura el snapshot DEV honesto y persiste el reporte JSON estable en `docs/performance-artifacts/browser-harness/` |
 
 ## Documentación del proyecto
 
@@ -76,6 +76,7 @@ Todos los comandos se ejecutan desde la raíz del proyecto.
 - `PERFORMANCE_OPTIMIZATION_PLAN.md` — plan maestro de refactor + performance por fases
 - `docs/performance-baseline.md` — guía del baseline reproducible de la Fase 0 (CLI + navegador)
 - `docs/browser-performance-harness-policy.md` — alcance y uso del harness mínimo browser-backed en DEV
+- `docs/performance-artifacts/browser-harness/README.md` — workflow y nombres estables de los artefactos JSON del harness browser-backed
 - `docs/performance-baseline-results.phase-0.json` — última corrida base automatizada de la Fase 0
 
 ## Deploy en GitHub Pages

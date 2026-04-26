@@ -16,8 +16,10 @@ La Fase 0 ya no depende solo de clicks manuales en navegador:
 - `scripts/performance/runPhase0Baseline.ts` — CLI reproducible para baseline automatizado
 - `scripts/performance/assertPhase0Baseline.ts` — gate CLI anti-regresión para validar budgets y bordes honestos del baseline
 - `scripts/performance/runPhase3CanvasSmoke.ts` — smoke controlado para estimar presión de rerender por zoom en Fase 3
+- `scripts/performance/runBrowserBenchmarkHarness.ts` — harness browser-backed mínimo en DEV que ahora persiste evidencia JSON estable por preset
 - `docs/performance-baseline-results.phase-0.full.json` — corrida base full (parse + ELK) para S/M y evidencia de falla en L/XL
 - `docs/performance-baseline-results.phase-0.parse-only.json` — corrida base parse-only para S/M/L/XL/XXL
+- `docs/performance-artifacts/browser-harness/` — ubicación estable para la evidencia JSON del harness browser-backed (`s` / `m`)
 
 ## Presets disponibles
 
@@ -163,6 +165,7 @@ Son guardrails iniciales para detectar regresiones del baseline actual mientras 
 - Los datasets siguen siendo sintéticos: excelentes para comparar regresiones, no para representar todos los esquemas reales.
 - El gate formal actual sigue cubriendo evidencia CLI/versionada; ahora existe un harness browser-backed mínimo en DEV (`npm run benchmark:browser`), pero las gates browser más amplias siguen pendientes.
 - Ese harness ya no asume fijo `4321`: sigue la URL real que anuncie Astro en DEV y usa timeout por defecto distinto para `S` (`45000 ms`) y `M` (`120000 ms`), salvo override explícito con `--timeout-ms`.
+- Además, cada corrida del harness browser-backed ahora persiste el mismo JSON estructurado en `docs/performance-artifacts/browser-harness/browser-benchmark-report.<preset>.json`, salvo override explícito con `--output`.
 
 ## Slice de validación pendiente: Phase 5 next slice
 

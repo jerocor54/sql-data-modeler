@@ -1,8 +1,11 @@
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import { once } from 'node:events';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, isAbsolute, resolve } from 'node:path';
 import process from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { Readable } from 'node:stream';
+import { fileURLToPath } from 'node:url';
 
 import { chromium } from 'playwright';
 
@@ -27,6 +30,7 @@ interface HarnessOptions {
   timeoutMs: number;
   timeoutSource: 'default' | 'cli';
   headed: boolean;
+  outputPath: string;
 }
 
 interface ResolvedDevServerRoute {
@@ -95,9 +99,11 @@ interface BenchmarkPanelPresetExpectation {
 }
 
 const PROJECT_ROOT = new URL('../../', import.meta.url);
+const PROJECT_ROOT_PATH = fileURLToPath(PROJECT_ROOT);
 const BENCHMARK_PAGE_PATH = '/benchmark';
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4321;
+const DEFAULT_OUTPUT_DIRECTORY = 'docs/performance-artifacts/browser-harness';
 const DEFAULT_TIMEOUT_MS_BY_PRESET: Record<HarnessPresetId, number> = {
   s: 45_000,
   m: 120_000,
@@ -167,6 +173,23 @@ function parsePresetId(raw: string | undefined): HarnessPresetId {
   throw new Error(`Preset inválido: ${raw}. Este harness mínimo solo soporta ${SUPPORTED_PRESETS.join(', ')}.`);
 }
 
+function createDefaultOutputPath(presetId: HarnessPresetId): string {
+  return `${DEFAULT_OUTPUT_DIRECTORY}/browser-benchmark-report.${presetId}.json`;
+}
+
+function parseOutputPath(raw: string | undefined, presetId: HarnessPresetId): string {
+  if (!raw) {
+    return createDefaultOutputPath(presetId);
+  }
+
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error('Valor inválido para --output: no puede estar vacío.');
+  }
+
+  return trimmed;
+}
+
 function parseOptions(): HarnessOptions {
   const presetId = parsePresetId(parseFlagValue('--preset'));
   const timeoutArgument = parseFlagValue('--timeout-ms');
@@ -178,7 +201,18 @@ function parseOptions(): HarnessOptions {
     timeoutMs: parsePositiveInteger(timeoutArgument, DEFAULT_TIMEOUT_MS_BY_PRESET[presetId], '--timeout-ms'),
     timeoutSource: timeoutArgument ? 'cli' : 'default',
     headed: parseBooleanFlag('--headed'),
+    outputPath: parseOutputPath(parseFlagValue('--output'), presetId),
   };
+}
+
+function resolveOutputPath(outputPath: string): string {
+  return isAbsolute(outputPath) ? outputPath : resolve(PROJECT_ROOT_PATH, outputPath);
+}
+
+async function writeHarnessReport(outputPath: string, report: HarnessReport): Promise<void> {
+  const resolvedOutputPath = resolveOutputPath(outputPath);
+  await mkdir(dirname(resolvedOutputPath), { recursive: true });
+  await writeFile(resolvedOutputPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 }
 
 function createBaseUrl(options: HarnessOptions): string {
@@ -730,7 +764,10 @@ async function main() {
   const options = parseOptions();
   const report = await captureSnapshot(options);
 
+  await writeHarnessReport(options.outputPath, report);
+
   console.log(JSON.stringify(report, null, 2));
+  console.error(`Harness report persisted to ${options.outputPath}`);
 
   if (report.status !== 'pass') {
     process.exitCode = 1;
