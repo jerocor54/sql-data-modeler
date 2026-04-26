@@ -67,7 +67,7 @@ Todos los comandos se ejecutan desde la raíz del proyecto.
 | `npm run preview` | Previsualiza el build |
 | `npx tsc --noEmit` | Valida tipos sin generar archivos |
 | `npm run benchmark:phase0 -- --output docs/performance-baseline-results.phase-0.json` | Corre el baseline reproducible de parse + layout y guarda un reporte JSON |
-| `npm run benchmark:browser -- --preset=s` | Levanta el DEV server, abre `/sql-data-modeler/benchmark` con Playwright y captura el snapshot DEV honesto |
+| `npm run benchmark:browser -- --preset=s` | Levanta el DEV server, sigue la URL real anunciada por Astro, abre `/sql-data-modeler/benchmark` con Playwright y captura el snapshot DEV honesto |
 
 ## Documentación del proyecto
 

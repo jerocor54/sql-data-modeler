@@ -115,7 +115,9 @@ npm run benchmark:browser -- --preset=m
 
 Optional flags:
 
-- `--timeout-ms=45000` to widen the bounded wait guard.
+- the harness now reads Astro's announced DEV URL, so if `4321` is busy and Astro drifts to another free port, the browser run follows that real URL instead of staying stale on the requested one.
+- default bounded wait guard is preset-aware: `S` keeps `45000 ms`, while `M` uses `120000 ms` by default because the current browser-backed support-boundary capture has already shown honest fallback-ready completion closer to ~94-100s+ than to `90000 ms`.
+- `--timeout-ms=<ms>` still overrides the preset default when you want a custom bounded wait guard.
 - `--headed` to watch Chromium run locally.
 
 ### What this harness actually does

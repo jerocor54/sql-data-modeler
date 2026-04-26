@@ -162,6 +162,7 @@ Son guardrails iniciales para detectar regresiones del baseline actual mientras 
 - Esta fase NO cubre todavía memoria, FPS, latencia de edición ni bloqueo fino del main thread.
 - Los datasets siguen siendo sintéticos: excelentes para comparar regresiones, no para representar todos los esquemas reales.
 - El gate formal actual sigue cubriendo evidencia CLI/versionada; ahora existe un harness browser-backed mínimo en DEV (`npm run benchmark:browser`), pero las gates browser más amplias siguen pendientes.
+- Ese harness ya no asume fijo `4321`: sigue la URL real que anuncie Astro en DEV y usa timeout por defecto distinto para `S` (`45000 ms`) y `M` (`120000 ms`), salvo override explícito con `--timeout-ms`.
 
 ## Slice de validación pendiente: Phase 5 next slice
 

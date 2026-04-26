@@ -25,7 +25,13 @@ interface HarnessOptions {
   host: string;
   port: number;
   timeoutMs: number;
+  timeoutSource: 'default' | 'cli';
   headed: boolean;
+}
+
+interface ResolvedDevServerRoute {
+  baseUrl: string;
+  routeUrl: string;
 }
 
 interface CheckResult {
@@ -81,11 +87,21 @@ interface SnapshotReadinessState {
   reasons: string[];
 }
 
+interface BenchmarkPanelPresetExpectation {
+  presetId: HarnessPresetId;
+  presetSummary: string;
+  supportLabel: string;
+  description: string;
+}
+
 const PROJECT_ROOT = new URL('../../', import.meta.url);
 const BENCHMARK_PAGE_PATH = '/benchmark';
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 4321;
-const DEFAULT_TIMEOUT_MS = 45_000;
+const DEFAULT_TIMEOUT_MS_BY_PRESET: Record<HarnessPresetId, number> = {
+  s: 45_000,
+  m: 120_000,
+};
 const SUPPORTED_PRESETS: readonly HarnessPresetId[] = ['s', 'm'];
 const APP_BASE_PATH = normalizeBasePath(astroConfig.base);
 const ROUTE_PATH = withBasePath(BENCHMARK_PAGE_PATH);
@@ -152,11 +168,15 @@ function parsePresetId(raw: string | undefined): HarnessPresetId {
 }
 
 function parseOptions(): HarnessOptions {
+  const presetId = parsePresetId(parseFlagValue('--preset'));
+  const timeoutArgument = parseFlagValue('--timeout-ms');
+
   return {
-    presetId: parsePresetId(parseFlagValue('--preset')),
+    presetId,
     host: parseFlagValue('--host') ?? DEFAULT_HOST,
     port: parsePositiveInteger(parseFlagValue('--port'), DEFAULT_PORT, '--port'),
-    timeoutMs: parsePositiveInteger(parseFlagValue('--timeout-ms'), DEFAULT_TIMEOUT_MS, '--timeout-ms'),
+    timeoutMs: parsePositiveInteger(timeoutArgument, DEFAULT_TIMEOUT_MS_BY_PRESET[presetId], '--timeout-ms'),
+    timeoutSource: timeoutArgument ? 'cli' : 'default',
     headed: parseBooleanFlag('--headed'),
   };
 }
@@ -167,6 +187,10 @@ function createBaseUrl(options: HarnessOptions): string {
 
 function createCheck(name: string, pass: boolean, detail: string): CheckResult {
   return { name, pass, detail };
+}
+
+function createRouteUrl(baseUrl: string): string {
+  return new URL(ROUTE_PATH, `${baseUrl}/`).toString();
 }
 
 function summarizeGroup(results: CheckResult[]) {
@@ -392,6 +416,101 @@ function createSnapshotReadinessTarget(
   };
 }
 
+function createBenchmarkPanelPresetExpectation(presetId: HarnessPresetId): BenchmarkPanelPresetExpectation {
+  const preset = getBenchmarkDatasetPreset(presetId);
+  const dataset = createBenchmarkDataset(presetId);
+  const supportLabel =
+    preset.interactiveSupport === 'safe'
+      ? 'Interactivo seguro hoy (S)'
+      : 'Timeout/fallback hoy (M)';
+
+  return {
+    presetId,
+    presetSummary: `${dataset.label} · ${dataset.tableCount} tablas`,
+    supportLabel,
+    description: dataset.description,
+  };
+}
+
+async function waitForBenchmarkPresetCommit(
+  page: import('playwright').Page,
+  expectation: BenchmarkPanelPresetExpectation,
+  timeoutMs: number,
+): Promise<void> {
+  const datasetCombobox = page.getByRole('combobox', { name: 'Dataset', exact: true });
+  const body = page.locator('body');
+  const deadline = Date.now() + timeoutMs;
+
+  await datasetCombobox.waitFor({ state: 'visible', timeout: timeoutMs });
+
+  while (Date.now() < deadline) {
+    const [selectedPresetId, bodyText] = await Promise.all([datasetCombobox.inputValue(), body.innerText()]);
+
+    if (
+      selectedPresetId === expectation.presetId &&
+      bodyText.includes(expectation.presetSummary) &&
+      bodyText.includes(expectation.supportLabel) &&
+      bodyText.includes(expectation.description)
+    ) {
+      return;
+    }
+
+    await delay(100);
+  }
+
+  throw new Error(
+    `El preset ${expectation.presetId} no terminó de reflejarse en el combobox Dataset y el panel dentro de ${timeoutMs}ms.`,
+  );
+}
+
+async function waitForBenchmarkRouteInteractionReady(
+  page: import('playwright').Page,
+  timeoutMs: number,
+): Promise<void> {
+  const defaultPresetExpectation = createBenchmarkPanelPresetExpectation('s');
+  const datasetCombobox = page.getByRole('combobox', { name: 'Dataset', exact: true });
+  const loadButton = page.getByRole('button', { name: 'Cargar dataset en la app', exact: true });
+  const rerunButton = page.getByRole('button', { name: 'Repetir baseline actual', exact: true });
+  const body = page.locator('body');
+  const deadline = Date.now() + timeoutMs;
+
+  await Promise.all([
+    datasetCombobox.waitFor({ state: 'visible', timeout: timeoutMs }),
+    loadButton.waitFor({ state: 'visible', timeout: timeoutMs }),
+    rerunButton.waitFor({ state: 'visible', timeout: timeoutMs }),
+  ]);
+
+  while (Date.now() < deadline) {
+    const [snapshot, selectedPresetId, loadButtonDisabled, rerunButtonDisabled, bodyText] = await Promise.all([
+      page.evaluate((snapshotKey) => {
+        return (window as unknown as Record<string, unknown>)[snapshotKey] as BrowserPerformanceSnapshot | undefined;
+      }, DEV_BROWSER_PERFORMANCE_SNAPSHOT_KEY),
+      datasetCombobox.inputValue(),
+      loadButton.isDisabled(),
+      rerunButton.isDisabled(),
+      body.innerText(),
+    ]);
+
+    if (
+      snapshot?.schemaVersion === 'phase-7-dev-v1' &&
+      selectedPresetId === defaultPresetExpectation.presetId &&
+      loadButtonDisabled === false &&
+      rerunButtonDisabled === false &&
+      bodyText.includes(defaultPresetExpectation.presetSummary) &&
+      bodyText.includes(defaultPresetExpectation.supportLabel) &&
+      bodyText.includes(defaultPresetExpectation.description)
+    ) {
+      return;
+    }
+
+    await delay(100);
+  }
+
+  throw new Error(
+    `La ruta benchmark no quedó lista para interactuar dentro de ${timeoutMs}ms usando los controles accesibles esperados.`,
+  );
+}
+
 async function waitForDevRoute(routeUrl: string, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   let lastError = 'Sin respuesta todavía.';
@@ -413,12 +532,52 @@ async function waitForDevRoute(routeUrl: string, timeoutMs: number): Promise<voi
   throw new Error(`El servidor DEV no respondió a tiempo en ${routeUrl}. Último estado: ${lastError}`);
 }
 
-function startDevServer(options: HarnessOptions, serverLogTail: string[]): DevServerProcess {
+function readDevServerBaseUrlFromLine(line: string): string | null {
+  const normalizedLine = line.trim();
+  if (!normalizedLine) return null;
+
+  const urlMatch = normalizedLine.match(/https?:\/\/[^\s)]+/u);
+  if (!urlMatch) return null;
+
+  try {
+    const candidateUrl = new URL(urlMatch[0]);
+    const baseUrl = `${candidateUrl.protocol}//${candidateUrl.host}`;
+    return baseUrl.replace(/\/+$/u, '');
+  } catch {
+    return null;
+  }
+}
+
+function startDevServer(
+  options: HarnessOptions,
+  serverLogTail: string[],
+): { child: DevServerProcess; readyBaseUrl: Promise<string> } {
   const child = spawn('npm', ['run', 'dev', '--', '--host', options.host, '--port', String(options.port)], {
     cwd: PROJECT_ROOT,
     env: { ...process.env, CI: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+
+  let settleReadyBaseUrl: ((value: string) => void) | null = null;
+  let settleReadyBaseUrlError: ((reason?: unknown) => void) | null = null;
+  let resolvedReadyBaseUrl = false;
+
+  const readyBaseUrl = new Promise<string>((resolve, reject) => {
+    settleReadyBaseUrl = resolve;
+    settleReadyBaseUrlError = reject;
+  });
+
+  const resolveReadyBaseUrl = (value: string) => {
+    if (resolvedReadyBaseUrl) return;
+    resolvedReadyBaseUrl = true;
+    settleReadyBaseUrl?.(value);
+  };
+
+  const rejectReadyBaseUrl = (reason: unknown) => {
+    if (resolvedReadyBaseUrl) return;
+    resolvedReadyBaseUrl = true;
+    settleReadyBaseUrlError?.(reason);
+  };
 
   const appendLog = (chunk: string) => {
     for (const line of chunk.split(/\r?\n/)) {
@@ -426,13 +585,35 @@ function startDevServer(options: HarnessOptions, serverLogTail: string[]): DevSe
       if (!trimmed) continue;
       serverLogTail.push(trimmed);
       if (serverLogTail.length > 40) serverLogTail.shift();
+
+      const parsedBaseUrl = readDevServerBaseUrlFromLine(trimmed);
+      if (parsedBaseUrl) {
+        resolveReadyBaseUrl(parsedBaseUrl);
+      }
     }
   };
 
   child.stdout.on('data', (chunk: Buffer | string) => appendLog(String(chunk)));
   child.stderr.on('data', (chunk: Buffer | string) => appendLog(String(chunk)));
 
-  return child;
+  child.once('exit', (code, signal) => {
+    rejectReadyBaseUrl(
+      new Error(`El servidor DEV terminó antes de anunciar su URL (code=${String(code)}, signal=${String(signal)}).`),
+    );
+  });
+
+  return { child, readyBaseUrl };
+}
+
+async function resolveDevServerRoute(
+  options: HarnessOptions,
+  readyBaseUrl: Promise<string>,
+): Promise<ResolvedDevServerRoute> {
+  const baseUrl = await readyBaseUrl;
+  const routeUrl = createRouteUrl(baseUrl);
+  await waitForDevRoute(routeUrl, options.timeoutMs);
+
+  return { baseUrl, routeUrl };
 }
 
 async function stopDevServer(child: DevServerProcess): Promise<void> {
@@ -450,19 +631,18 @@ async function stopDevServer(child: DevServerProcess): Promise<void> {
 }
 
 async function captureSnapshot(options: HarnessOptions): Promise<HarnessReport> {
-  const baseUrl = createBaseUrl(options);
-  const routeUrl = `${baseUrl}${ROUTE_PATH}`;
+  const requestedBaseUrl = createBaseUrl(options);
+  const requestedRouteUrl = createRouteUrl(requestedBaseUrl);
   const preset = getBenchmarkDatasetPreset(options.presetId);
   const serverLogTail: string[] = [];
-  const child = startDevServer(options, serverLogTail);
+  const { child, readyBaseUrl } = startDevServer(options, serverLogTail);
+  let baseUrl = requestedBaseUrl;
+  let routeUrl = requestedRouteUrl;
 
   try {
-    await Promise.race([
-      waitForDevRoute(routeUrl, options.timeoutMs),
-      once(child, 'exit').then(([code, signal]) => {
-        throw new Error(`El servidor DEV terminó antes de quedar listo (code=${String(code)}, signal=${String(signal)}).`);
-      }),
-    ]);
+    const resolvedRoute = await resolveDevServerRoute(options, readyBaseUrl);
+    baseUrl = resolvedRoute.baseUrl;
+    routeUrl = resolvedRoute.routeUrl;
 
     const browser = await chromium.launch({ headless: !options.headed });
 
@@ -471,7 +651,13 @@ async function captureSnapshot(options: HarnessOptions): Promise<HarnessReport> 
       const page = await context.newPage();
 
       await page.goto(routeUrl, { waitUntil: 'domcontentloaded', timeout: options.timeoutMs });
+      await waitForBenchmarkRouteInteractionReady(page, options.timeoutMs);
       await page.getByRole('combobox', { name: 'Dataset' }).selectOption(options.presetId);
+      await waitForBenchmarkPresetCommit(
+        page,
+        createBenchmarkPanelPresetExpectation(options.presetId),
+        options.timeoutMs,
+      );
       const previousSnapshot = await readDevBrowserPerformanceSnapshot(page);
       const readinessTarget = createSnapshotReadinessTarget(
         options.presetId,
@@ -500,10 +686,10 @@ async function captureSnapshot(options: HarnessOptions): Promise<HarnessReport> 
             presetId: options.presetId,
             presetLabel: preset.label,
             expectedTableCount: preset.tableCount,
-          browser: 'chromium',
-          timeoutMs: options.timeoutMs,
-          headed: options.headed,
-        },
+            browser: 'chromium',
+            timeoutMs: options.timeoutMs,
+            headed: options.headed,
+          },
         checks,
         snapshot: typedSnapshot,
       };
