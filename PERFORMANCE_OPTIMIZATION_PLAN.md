@@ -736,7 +736,7 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
    - [x] tamaño del modelo
 3. Registrar long tasks. ✅ Cerrado en este slice con observación DEV-only degradable y resumen compacto en overlay.
 4. Registrar fallbacks activados. ✅ Cerrado en este slice con estado + diagnósticos visibles en overlay.
-5. Definir gates mínimos para no aceptar regresiones graves. ◑ Slice honesto actual: gate CLI sobre baseline versionado + seam DEV-only de snapshot browser-readable; browser-backed gates siguen pendientes.
+5. Definir gates mínimos para no aceptar regresiones graves. ◑ Slice honesto actual: gate CLI sobre baseline versionado + seam DEV-only de snapshot browser-readable + política documentada para harness browser-backed futuro; la automatización/gates browser-backed siguen pendientes.
 
 ## Validación
 
@@ -744,6 +744,7 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
 - [x] ya existe un gate formal y repetible para la evidencia CLI del baseline versionado.
 - [x] existe un contrato DEV-only serializable en `window.__SQL_DATA_MODELER_PERF__` para que un harness browser-backed futuro lea métricas reales sin acoplarse a internals React.
 - [x] la shape/versionado/caveats de ese snapshot ya quedaron documentados explícitamente en `docs/browser-performance-snapshot-contract.md`.
+- [x] la política del harness browser-backed futuro (ruta objetivo, timing de captura, categorías leídas y alcance honesto de gates) ya quedó documentada en `docs/browser-performance-harness-policy.md`.
 - [ ] seguimos sin gates browser-backed para UX/FPS/overlay real.
 
 ## Criterio de salida
@@ -760,13 +761,14 @@ Este primer slice de Fase 7 deja resuelto SOLO lo siguiente:
 - instrumentación DEV-only de `long tasks` bajo `src/features/performance/` con degradación limpia cuando el navegador no lo soporta
 - seam DEV-only bajo `src/features/performance/browserPerformanceSnapshot.ts` que publica un snapshot serializable y read-only en `window.__SQL_DATA_MODELER_PERF__`
 - contrato explícito del snapshot DEV-only en `docs/browser-performance-snapshot-contract.md` para destrabar un harness browser-backed futuro sin inventar compatibilidad implícita
+- política explícita del harness futuro en `docs/browser-performance-harness-policy.md` para fijar ruta `/benchmark`, filosofía de captura y alcance honesto antes de automatizar
 
 ### Pendiente real de Fase 7
 
 - extender los gates desde la evidencia CLI hacia `/benchmark` y browser real sin caer en teatro
 - cubrir UX/FPS/overlay con un harness browser-backed honesto
 - ampliar el criterio de comparación repetible más allá de la evidencia CLI versionada
-- convertir el contrato DEV documentado en una política real de harness/gates browser-backed (captura, timings, budgets y pass/fail)
+- convertir la política documentada en harness/automatización real y recién después endurecer budgets/pass-fail browser-backed honestos
 
 ### Slice honesto adicional cerrado ahora
 
@@ -783,6 +785,14 @@ Además del gate CLI y del seam DEV-only ya entregados, ahora queda resuelto EST
 - `docs/browser-performance-snapshot-contract.md` documenta dónde vive el snapshot DEV-only y quién debe consumirlo
 - el contrato deja explícitos `schemaVersion`, categorías top-level expuestas y nullability esperada
 - también deja escritos los no-objetivos: no es API productiva, no agrega gates browser-backed y no promete compatibilidad implícita fuera de la versión declarada
+
+### Slice honesto adicional cerrado ahora — política del harness browser-backed futuro
+
+Además del gate CLI y del contrato del snapshot ya entregados, ahora queda resuelto ESTE pedazo puntual de Fase 7:
+
+- `docs/browser-performance-harness-policy.md` fija que el primer target del harness futuro debe ser `/benchmark` en DEV con contextos explícitos como `S` y `M`
+- la política deja escrito que la captura debe esperar readiness explícita y el punto honesto de "usable" ya documentado, en vez de depender de sleeps arbitrarios
+- también deja delimitado qué debe leer primero (`timings`, `graph`, `model`, `presentation`, `diagnostics`, `longTasks`) y qué NO debe fingir cubrir todavía (FPS/UX general/producción/cross-browser)
 
 ---
 
