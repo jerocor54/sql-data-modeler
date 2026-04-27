@@ -38,7 +38,9 @@ import type {
 import { useAutoLayout } from '../features/auto-layout/useAutoLayout';
 import { useSyncDiagramCanvasTransientState } from '../features/diagram-canvas/diagramCanvasTransientState';
 import { useDiagramCanvasModel } from '../features/diagram-canvas/useDiagramCanvasModel';
+import { OverviewExportSurface } from '../features/diagram-export/OverviewExportSurface';
 import {
+  getOverviewVisibleEdgeIds,
   useDiagramPresentation,
   type DiagramFocusDepth,
   type DiagramPresentationNodeMembership,
@@ -77,6 +79,17 @@ function formatExportLabel(format: 'svg' | 'png' | 'jpeg'): string {
   if (format === 'svg') return 'SVG';
   if (format === 'png') return 'PNG';
   return 'JPEG';
+}
+
+type DiagramExportIntent = 'overview';
+
+interface DiagramExportJob {
+  format: 'svg' | 'png' | 'jpeg';
+  intent: DiagramExportIntent;
+}
+
+function formatExportIntentLabel(intent: DiagramExportIntent): string {
+  return intent === 'overview' ? 'overview' : intent;
 }
 
 function ensureSvgBackground(dataUrl: string, fillColor: string): string {
@@ -305,7 +318,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   const [goToLine, setGoToLine] = useState<number | null>(null);
   const [previewTable, setPreviewTable] = useState<string | null>(null);
   const [openDiagramMenu, setOpenDiagramMenu] = useState(false);
-  const [exportingFormat, setExportingFormat] = useState<'svg' | 'png' | 'jpeg' | null>(null);
+  const [exportJob, setExportJob] = useState<DiagramExportJob | null>(null);
   const [isResizingPanels, setIsResizingPanels] = useState(false);
   const [layoutRevision, setLayoutRevision] = useState(0);
   const [focusedAmbiguousTables, setFocusedAmbiguousTables] = useState<Set<string>>(new Set());
@@ -313,6 +326,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   const [searchFocusedTables, setSearchFocusedTables] = useState<Set<string>>(new Set());
   const [searchFocusedColumns, setSearchFocusedColumns] = useState<Set<string>>(new Set());
   const exportRef = useRef<HTMLDivElement>(null);
+  const overviewExportRef = useRef<HTMLDivElement>(null);
   const panelsRef = useRef<HTMLElement>(null);
   const diagramMenuRef = useRef<HTMLDivElement>(null);
   const diagramMenuTriggerRef = useRef<HTMLButtonElement>(null);
@@ -514,11 +528,12 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       effectiveFocusDepth,
       focusContextCount,
       focusViewportRequestToken,
-      focusSignalCount: diagramPresentationFocusSignalCount,
-      focusVisibilityLabel,
-      focusVisibleEdgeCount,
-      focusVisibleNodeCount,
-      goToNextFocusContext,
+       focusSignalCount: diagramPresentationFocusSignalCount,
+       focusVisibilityLabel,
+       focusVisibleEdgeCount,
+       focusVisibleNodeCount,
+       overviewPriorityNodeIds,
+       goToNextFocusContext,
       goToPreviousFocusContext,
       expandFocusDepth,
       isAutomaticMode: isDiagramPresentationAutomatic,
@@ -552,6 +567,15 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   const presentedEdges = useMemo(
     () => edges.filter((edge) => visibleEdgeIds.has(edge.id)),
     [edges, visibleEdgeIds],
+  );
+  const overviewVisibleNodeIds = useMemo(() => new Set(nodes.map((node) => node.id)), [nodes]);
+  const overviewVisibleEdgeIds = useMemo(
+    () => getOverviewVisibleEdgeIds(edges, overviewVisibleNodeIds, highlightedEdgeIds, overviewPriorityNodeIds, currentAutomaticStrategy),
+    [currentAutomaticStrategy, edges, highlightedEdgeIds, overviewPriorityNodeIds, overviewVisibleNodeIds],
+  );
+  const overviewPresentedEdges = useMemo(
+    () => edges.filter((edge) => overviewVisibleEdgeIds.has(edge.id)),
+    [edges, overviewVisibleEdgeIds],
   );
   const browserPerformanceSnapshot = useBrowserPerformanceSnapshot({
     latestResult,
@@ -724,23 +748,26 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   }, []);
 
   const exportDiagram = useCallback(
-    async (format: 'svg' | 'png' | 'jpeg') => {
-      if (!exportRef.current) {
-        setExportingFormat(null);
+    async (job: DiagramExportJob) => {
+      const exportTargetRef = job.intent === 'overview' ? overviewExportRef : exportRef;
+      const exportNodes = job.intent === 'overview' ? nodes : presentedNodes;
+
+      if (!exportTargetRef.current) {
+        setExportJob(null);
         return;
       }
 
       try {
         const { toJpeg, toPng, toSvg } = await loadHtmlToImageModule();
-        const viewportEl = exportRef.current.querySelector('.react-flow__viewport') as HTMLElement | null;
+        const viewportEl = exportTargetRef.current.querySelector('.react-flow__viewport') as HTMLElement | null;
         if (!viewportEl) return;
 
-        const hasNodes = presentedNodes.length > 0;
-        const fallbackWidth = Math.max(EXPORT_MIN_WIDTH, exportRef.current.clientWidth);
-        const fallbackHeight = Math.max(EXPORT_MIN_HEIGHT, exportRef.current.clientHeight);
+        const hasNodes = exportNodes.length > 0;
+        const fallbackWidth = Math.max(EXPORT_MIN_WIDTH, exportTargetRef.current.clientWidth);
+        const fallbackHeight = Math.max(EXPORT_MIN_HEIGHT, exportTargetRef.current.clientHeight);
 
         const bounds = hasNodes
-          ? getNodesBounds(presentedNodes)
+          ? getNodesBounds(exportNodes)
           : {
               x: 0,
               y: 0,
@@ -768,14 +795,14 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
           },
         };
 
-        if (format === 'svg') {
+        if (job.format === 'svg') {
           const data = await toSvg(viewportEl, options);
           const withBackground = ensureSvgBackground(data, backgroundColor);
           downloadDataUrl('diagram.svg', withBackground);
           return;
         }
 
-        if (format === 'png') {
+        if (job.format === 'png') {
           const data = await toPng(viewportEl, {
             ...options,
             pixelRatio: exportScale,
@@ -794,26 +821,32 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
         // eslint-disable-next-line no-console
         console.error('Error exportando diagrama:', error);
       } finally {
-        setExportingFormat(null);
+        setExportJob(null);
       }
     },
-    [exportScale, presentedNodes],
+    [exportScale, nodes, presentedNodes],
   );
 
-  const handleExportDiagram = useCallback(
-    (format: 'svg' | 'png' | 'jpeg') => {
-      if (exportingFormat) return;
+  useEffect(() => {
+    if (!exportJob) return;
 
-      setExportingFormat(format);
-
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          void exportDiagram(format);
-        });
+    let frameB: number | null = null;
+    const frameA = window.requestAnimationFrame(() => {
+      frameB = window.requestAnimationFrame(() => {
+        void exportDiagram(exportJob);
       });
-    },
-    [exportDiagram, exportingFormat],
-  );
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameA);
+      if (frameB !== null) window.cancelAnimationFrame(frameB);
+    };
+  }, [exportDiagram, exportJob]);
+
+  const handleExportDiagram = useCallback((format: 'svg' | 'png' | 'jpeg') => {
+    if (exportJob) return;
+    setExportJob({ format, intent: 'overview' });
+  }, [exportJob]);
 
   const previewData = parsed.tables.find((table) => table.key === previewTable) ?? null;
   const loadBenchmarkDataset = useCallback(
@@ -901,7 +934,7 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
       diagramSearch={diagramSearch}
       diagramSearchResults={diagramSearchResults}
       diagramViewport={diagramViewport}
-      disableViewportCulling={Boolean(exportingFormat)}
+      disableViewportCulling={false}
       edges={presentedEdges}
       exportRef={exportRef}
       hasSavedDiagramViewport={hasSavedDiagramViewport}
@@ -1089,9 +1122,9 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
             </button>
           </div>
 
-          {exportingFormat && (
+          {exportJob && (
             <span className="status-pill">
-              <span className="loader-dot" /> Exportando {formatExportLabel(exportingFormat)}...
+              <span className="loader-dot" /> Exportando {formatExportLabel(exportJob.format)} {formatExportIntentLabel(exportJob.intent)}...
             </span>
           )}
 
@@ -1261,7 +1294,11 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
               </div>
 
               <div className="overlay-section">
-                <span className="overlay-label">Exportar</span>
+                <span className="overlay-label">Exportar overview</span>
+
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  Fase 8 actual: exporta el overview explícito aunque el modo visible esté en full o focus.
+                </span>
 
                 <label style={{ display: 'grid', gap: 4, fontSize: 12 }}>
                   Escala export (PNG/JPEG)
@@ -1282,15 +1319,15 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
                     <button
                       key={format}
                       className="btn btn-subtle btn-sm compact-format-btn"
-                      disabled={Boolean(exportingFormat)}
-                      aria-busy={exportingFormat === format}
+                      disabled={Boolean(exportJob)}
+                      aria-busy={exportJob?.format === format}
                       onClick={() => {
                         handleExportDiagram(format);
                         setOpenDiagramMenu(false);
                       }}
-                      title={`Exportar ${formatExportLabel(format)}`}
+                      title={`Exportar overview en ${formatExportLabel(format)}`}
                     >
-                      {exportingFormat === format ? <span className="loader-dot" /> : <DownloadCloud size={14} />}
+                      {exportJob?.format === format ? <span className="loader-dot" /> : <DownloadCloud size={14} />}
                       {formatExportLabel(format)}
                     </button>
                   ))}
@@ -1301,6 +1338,14 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
         </div>
         </div>
       </header>
+
+      {exportJob?.intent === 'overview' && (
+        <OverviewExportSurface
+          edges={overviewPresentedEdges}
+          exportRef={overviewExportRef}
+          nodes={nodes}
+        />
+      )}
 
       {isBenchmarkMode && (
         <Suspense

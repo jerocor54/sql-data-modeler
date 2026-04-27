@@ -241,7 +241,7 @@ Cada fase se ejecuta así:
 | 5 | Memoria, cachés y payloads | **Cerrada con follow-ups explícitos ya resueltos** |
 | 6 | Astro shell, carga inicial y bundles | **Pausada honestamente — startup deferrals principales aplicadas; split de settings diferido** |
 | 7 | Observabilidad y reglas anti-regresión | **Cerrada con caveats explícitos** |
-| 8 | Exportación escalable y cierre | Pendiente |
+| 8 | Exportación escalable y cierre | **En progreso — paso 1 cerrado; pasos 2-5 pendientes** |
 
 ---
 
@@ -842,11 +842,11 @@ El producto también vale por su capacidad de comunicar/exportar, así que expor
 
 ## Paso a paso
 
-1. Definir export por overview.
-2. Definir export por selección / área / schema.
-3. Evitar export full-detail gigante por defecto.
-4. Agregar advertencias claras cuando una exportación es costosa.
-5. Separar pipeline de export si hace falta.
+- [x] Definir export por overview explícito como contrato separado del modo visible.
+- [ ] Definir export por selección / área / schema.
+- [ ] Evitar export full-detail gigante por defecto más allá del overview explícito.
+- [ ] Agregar advertencias claras cuando una exportación es costosa.
+- [ ] Separar pipeline de export si hace falta.
 
 ## Validación
 
@@ -908,17 +908,17 @@ Vamos bien si:
 
 ### Etapa actual
 
-## **Fase 4 — UX para modelos gigantes**
+## **Fase 8 — Exportación escalable y cierre**
 
 ### No hay discusión acá
 
-Con Fase 3 cerrada, seguir micro-optimizando render sin cambiar la experiencia sería insistir sobre retornos decrecientes.
+Con los slices previos ya cerrados, el próximo trabajo honesto es completar los pasos pendientes de exportación escalable sin vender capacidades que todavía no existen.
 
 ### Resultado que necesitamos antes de seguir
 
-- overview mode explícito
-- focus mode y navegación orientada a búsqueda
-- estrategia de detalle progresivo para modelos gigantes
-- comunicación clara cuando la app cambia de modo por escala
+- export por selección / área / schema
+- política explícita para evitar full-detail gigante por defecto en los caminos restantes
+- advertencias de costo antes de exportaciones pesadas
+- separar pipeline de export si el DOM vivo sigue siendo cuello real
 
-La Fase 4 queda habilitada, pero NO se mezcla dentro de este batch final de Fase 3.
+El paso 1 de Fase 8 quedó cerrado con overview explícito. Los pasos 2-5 siguen pendientes y NO se mezclan en este slice.

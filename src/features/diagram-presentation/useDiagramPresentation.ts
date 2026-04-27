@@ -64,6 +64,7 @@ interface DiagramPresentationResult {
   focusVisibilityLabel: string | null;
   focusVisibleEdgeCount: number | null;
   focusVisibleNodeCount: number | null;
+  overviewPriorityNodeIds: Set<string>;
   goToNextFocusContext: () => void;
   goToPreviousFocusContext: () => void;
   isAutomaticMode: boolean;
@@ -310,7 +311,7 @@ function getFocusVisibleNodeIds(
   return visibleNodeIds.size > 0 ? visibleNodeIds : allNodeIds;
 }
 
-function getOverviewVisibleEdgeIds(
+export function getOverviewVisibleEdgeIds(
   edges: Edge[],
   visibleNodeIds: Set<string>,
   highlightedEdgeIds: Set<string>,
@@ -648,6 +649,7 @@ export function useDiagramPresentation({
     focusVisibilityLabel: effectiveFocusDepth === null ? null : describeFocusDepth(effectiveFocusDepth),
     focusVisibleEdgeCount: effectiveFocusDepth === null ? null : visibleEdgeIds.size,
     focusVisibleNodeCount: effectiveFocusDepth === null ? null : visibleNodeIds.size,
+    overviewPriorityNodeIds: allFocusSeedNodeIds,
     goToNextFocusContext,
     goToPreviousFocusContext,
     isAutomaticMode: manualMode === null,
