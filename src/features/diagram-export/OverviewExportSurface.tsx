@@ -18,6 +18,7 @@ export function OverviewExportSurface({ edges, exportRef, nodes }: OverviewExpor
   return (
     <div
       aria-hidden="true"
+      data-export-surface="overview"
       style={{
         position: 'fixed',
         top: -10000,

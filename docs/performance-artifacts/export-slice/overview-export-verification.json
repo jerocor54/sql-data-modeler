@@ -1,0 +1,1066 @@
+{
+  "status": "pass",
+  "harness": {
+    "mode": "dev",
+    "route": "/sql-data-modeler/benchmark",
+    "baseUrl": "http://127.0.0.1:4323",
+    "browser": "chromium",
+    "datasetPresetId": "s",
+    "datasetLabel": "S",
+    "expectedTableCount": 50,
+    "timeoutMs": 90000,
+    "timeoutSource": "default",
+    "headed": false
+  },
+  "scope": {
+    "verifies": [
+      "explicit overview export contract",
+      "visible requested/effective mode stability during export",
+      "visible viewport stability during export",
+      "SVG/PNG/JPEG overview export from full, overview, and focus request states"
+    ],
+    "deferred": [
+      "selection export",
+      "area export",
+      "schema export"
+    ]
+  },
+  "outOfScopeClaimCheck": {
+    "pass": true,
+    "detail": "El menú solo declara overview explícito y no anuncia selection/area/schema.",
+    "menuText": "SQL Data Modeler\nPostgreSQL + Oracle · ERD en tiempo real\nEstrategia activa: Normal\nModo visible: Full · auto\n50/50 tablas · 78/78 relaciones\nModelo normal: se muestra full detail sin recortes automáticos.\nModo diagrama\nAutomático\nFull\nOverview\nFocus\nContexto anterior\nContexto siguiente\nCentrar foco\nVer overview\nMenos contexto\nMás contexto\nReset auto\nVISTA Y ESTILO\nTipo de vista\n2 paneles\nPestañas\nTipo de dato (global)\nTexto\nÍcono\nDiseño de tablas\nModerno\nDBeaver\nDiseño visual de línea\nContinua\nPunteada\nAgrupación de relaciones\nSeparadas por relación\nUnión final por tabla\nACCIONES\nAuto-organizar tablas\nReset colores al tema\nEXPORTAR OVERVIEW\nFase 8 actual: exporta el overview explícito aunque el modo visible esté en full o focus.\nEscala export (PNG/JPEG)\n1x · rápido\n2x · recomendado\n3x · alta\n4x · ultra\nSVG\nPNG\nJPEG\nBaseline de performance · Fase 0\nPresets sintéticos y determinísticos para comparar parse, layout y tiempo total hasta diagrama usable.\nDataset\nS · 50 tablas\nM · 200 tablas\nL · 500 tablas\nXL · 1000 tablas\nXXL · 3000 tablas\nVersión\nphase-0-v1\nPreset\nS · 50 tablas\nSoporte interactivo\nInteractivo seguro hoy (S)\nBaseline chico con soporte interactivo estable en ELK para validar parse + layout.\nCargar dataset en la app\nRepetir baseline actual\nCopiar resultados JSON\nLimpiar historial\nÚltima medición\nTrigger\ndataset-load\nTablas\n50\nLayout\nelk\nParse\n195.40 ms\nLayout\n796.10 ms\nTotal usable\n2460.00 ms\nRelaciones\n78\nPayload layout worker\nPayload\n14.37 KB\nSerialize\n0.00 ms\npostMessage\n0.00 ms\nRound-trip\n796.00 ms\nWorker compute\n593.20 ms\nTransfer estimado\n202.80 ms\nHistorial reciente\nDataset\tTablas\tRel.\tParse\tLayout\tPayload\tRound-trip\tTotal\tMotor\nS\t50\t78\t195.40 ms\t796.10 ms\t14.37 KB\t796.00 ms\t2460.00 ms\telk\nEditor SQL (DDL)\nRender en vivo\n1\nCREATE TABLE bench_core.entity_0001 (\nSin errores ni advertencias de referencia.\nbench_audit.entity_0016\n9 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_core.entity_0017\n8 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_sales.entity_0018\n7 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_ops.entity_0019\n8 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_audit.entity_0020\n7 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_core.entity_0021\n8 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_sales.entity_0022\n8 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_ops.entity_0023\n7 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_audit.entity_0024\n7 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_core.entity_0025\n9 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_sales.entity_0026\n8 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_ops.entity_0027\n7 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_audit.entity_0028\n8 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_core.entity_0029\n7 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_sales.entity_0030\n7 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_ops.entity_0031\n9 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_audit.entity_0032\n7 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_core.entity_0033\n8 cols\nVista resumida por zoom\nAcercate para ver columnas\nbench_sales.entity_0034\n8 cols\nVista resumida por zoom\nAcercate para ver columnas\nReact Flow\nDEV PERFORMANCE\nFase 7 · ready-non-fallback\nready-non-fallback\nparse\n195.4 ms\nlayout\n796.1 ms\nrender aprox\n1468.5 ms\nnodes\n50/50\nedges\n78/78\nmodo\nelk · full · auto\nestrategia\nnormal\nvista\nsplit\nSQL chars\n17.997\ntablas\n50\nrelaciones\n78\nfallback inactivo\nlong tasks\n3\nmax long task\n1402.0 ms\nlast long task\n59.0 ms\núltima captura\n14:29:06"
+  },
+  "cases": [
+    {
+      "state": "full",
+      "requestedMode": "full",
+      "expectedEffectiveMode": "full",
+      "format": "svg",
+      "pass": true,
+      "evidence": {
+        "schemaVersion": "phase-8-overview-export-v1",
+        "status": "completed",
+        "job": {
+          "format": "svg",
+          "intent": "overview"
+        },
+        "exportSurface": "overview-hidden",
+        "requestedVisibleModeBefore": "full",
+        "requestedVisibleModeAfter": "full",
+        "effectiveVisibleModeBefore": "full",
+        "effectiveVisibleModeAfter": "full",
+        "workspaceViewModeBefore": "split",
+        "workspaceViewModeAfter": "split",
+        "visibleViewportBefore": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visibleViewportAfter": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visiblePresentedNodeCountBefore": 50,
+        "visiblePresentedEdgeCountBefore": 78,
+        "exportInputNodeCount": 50,
+        "exportInputEdgeCount": 78,
+        "overviewContractNodeCount": 50,
+        "overviewContractEdgeCount": 78,
+        "exportRenderedNodeCount": 1,
+        "exportRenderedEdgeCount": 9,
+        "viewportStable": true,
+        "visibleModeStable": true,
+        "downloadFileName": "diagram.svg",
+        "downloadDataUrlPrefix": "data:image/svg+xml;charset=utf-8",
+        "startedAt": "2026-04-27T20:29:07.178Z",
+        "completedAt": "2026-04-27T20:29:07.178Z",
+        "errorMessage": null
+      },
+      "checks": [
+        {
+          "name": "status-completed",
+          "pass": true,
+          "detail": "status=completed"
+        },
+        {
+          "name": "explicit-overview-intent",
+          "pass": true,
+          "detail": "intent=overview"
+        },
+        {
+          "name": "overview-hidden-surface",
+          "pass": true,
+          "detail": "surface=overview-hidden"
+        },
+        {
+          "name": "requested-mode-preserved",
+          "pass": true,
+          "detail": "requestedBefore=full · requestedAfter=full"
+        },
+        {
+          "name": "effective-mode-stable",
+          "pass": true,
+          "detail": "effectiveBefore=full · effectiveAfter=full"
+        },
+        {
+          "name": "viewport-stable",
+          "pass": true,
+          "detail": "{\"before\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08},\"after\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08}}"
+        },
+        {
+          "name": "visible-mode-stable-flag",
+          "pass": true,
+          "detail": "visibleModeStable=true"
+        },
+        {
+          "name": "overview-contract-input-counts",
+          "pass": true,
+          "detail": "inputNodes=50/50 · inputEdges=78/78"
+        },
+        {
+          "name": "hidden-surface-has-dom-content",
+          "pass": true,
+          "detail": "renderedNodes=1 · renderedEdges=9"
+        },
+        {
+          "name": "download-file-name",
+          "pass": true,
+          "detail": "downloadFileName=diagram.svg"
+        },
+        {
+          "name": "download-data-url-prefix",
+          "pass": true,
+          "detail": "prefix=data:image/svg+xml;charset=utf-8"
+        },
+        {
+          "name": "focus-request-falls-back-honestly",
+          "pass": true,
+          "detail": "visibleNodes=50 · overviewNodes=50"
+        },
+        {
+          "name": "viewport-equality-helper",
+          "pass": true,
+          "detail": "Comparación estructural del viewport visible antes/después."
+        }
+      ]
+    },
+    {
+      "state": "full",
+      "requestedMode": "full",
+      "expectedEffectiveMode": "full",
+      "format": "png",
+      "pass": true,
+      "evidence": {
+        "schemaVersion": "phase-8-overview-export-v1",
+        "status": "completed",
+        "job": {
+          "format": "png",
+          "intent": "overview"
+        },
+        "exportSurface": "overview-hidden",
+        "requestedVisibleModeBefore": "full",
+        "requestedVisibleModeAfter": "full",
+        "effectiveVisibleModeBefore": "full",
+        "effectiveVisibleModeAfter": "full",
+        "workspaceViewModeBefore": "split",
+        "workspaceViewModeAfter": "split",
+        "visibleViewportBefore": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visibleViewportAfter": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visiblePresentedNodeCountBefore": 50,
+        "visiblePresentedEdgeCountBefore": 78,
+        "exportInputNodeCount": 50,
+        "exportInputEdgeCount": 78,
+        "overviewContractNodeCount": 50,
+        "overviewContractEdgeCount": 78,
+        "exportRenderedNodeCount": 1,
+        "exportRenderedEdgeCount": 9,
+        "viewportStable": true,
+        "visibleModeStable": true,
+        "downloadFileName": "diagram.png",
+        "downloadDataUrlPrefix": "data:image/png;base64,iVBORw0KGg",
+        "startedAt": "2026-04-27T20:29:07.543Z",
+        "completedAt": "2026-04-27T20:29:07.543Z",
+        "errorMessage": null
+      },
+      "checks": [
+        {
+          "name": "status-completed",
+          "pass": true,
+          "detail": "status=completed"
+        },
+        {
+          "name": "explicit-overview-intent",
+          "pass": true,
+          "detail": "intent=overview"
+        },
+        {
+          "name": "overview-hidden-surface",
+          "pass": true,
+          "detail": "surface=overview-hidden"
+        },
+        {
+          "name": "requested-mode-preserved",
+          "pass": true,
+          "detail": "requestedBefore=full · requestedAfter=full"
+        },
+        {
+          "name": "effective-mode-stable",
+          "pass": true,
+          "detail": "effectiveBefore=full · effectiveAfter=full"
+        },
+        {
+          "name": "viewport-stable",
+          "pass": true,
+          "detail": "{\"before\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08},\"after\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08}}"
+        },
+        {
+          "name": "visible-mode-stable-flag",
+          "pass": true,
+          "detail": "visibleModeStable=true"
+        },
+        {
+          "name": "overview-contract-input-counts",
+          "pass": true,
+          "detail": "inputNodes=50/50 · inputEdges=78/78"
+        },
+        {
+          "name": "hidden-surface-has-dom-content",
+          "pass": true,
+          "detail": "renderedNodes=1 · renderedEdges=9"
+        },
+        {
+          "name": "download-file-name",
+          "pass": true,
+          "detail": "downloadFileName=diagram.png"
+        },
+        {
+          "name": "download-data-url-prefix",
+          "pass": true,
+          "detail": "prefix=data:image/png;base64,iVBORw0KGg"
+        },
+        {
+          "name": "focus-request-falls-back-honestly",
+          "pass": true,
+          "detail": "visibleNodes=50 · overviewNodes=50"
+        },
+        {
+          "name": "viewport-equality-helper",
+          "pass": true,
+          "detail": "Comparación estructural del viewport visible antes/después."
+        }
+      ]
+    },
+    {
+      "state": "full",
+      "requestedMode": "full",
+      "expectedEffectiveMode": "full",
+      "format": "jpeg",
+      "pass": true,
+      "evidence": {
+        "schemaVersion": "phase-8-overview-export-v1",
+        "status": "completed",
+        "job": {
+          "format": "jpeg",
+          "intent": "overview"
+        },
+        "exportSurface": "overview-hidden",
+        "requestedVisibleModeBefore": "full",
+        "requestedVisibleModeAfter": "full",
+        "effectiveVisibleModeBefore": "full",
+        "effectiveVisibleModeAfter": "full",
+        "workspaceViewModeBefore": "split",
+        "workspaceViewModeAfter": "split",
+        "visibleViewportBefore": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visibleViewportAfter": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visiblePresentedNodeCountBefore": 50,
+        "visiblePresentedEdgeCountBefore": 78,
+        "exportInputNodeCount": 50,
+        "exportInputEdgeCount": 78,
+        "overviewContractNodeCount": 50,
+        "overviewContractEdgeCount": 78,
+        "exportRenderedNodeCount": 1,
+        "exportRenderedEdgeCount": 9,
+        "viewportStable": true,
+        "visibleModeStable": true,
+        "downloadFileName": "diagram.jpg",
+        "downloadDataUrlPrefix": "data:image/jpeg;base64,/9j/4AAQS",
+        "startedAt": "2026-04-27T20:29:07.841Z",
+        "completedAt": "2026-04-27T20:29:07.841Z",
+        "errorMessage": null
+      },
+      "checks": [
+        {
+          "name": "status-completed",
+          "pass": true,
+          "detail": "status=completed"
+        },
+        {
+          "name": "explicit-overview-intent",
+          "pass": true,
+          "detail": "intent=overview"
+        },
+        {
+          "name": "overview-hidden-surface",
+          "pass": true,
+          "detail": "surface=overview-hidden"
+        },
+        {
+          "name": "requested-mode-preserved",
+          "pass": true,
+          "detail": "requestedBefore=full · requestedAfter=full"
+        },
+        {
+          "name": "effective-mode-stable",
+          "pass": true,
+          "detail": "effectiveBefore=full · effectiveAfter=full"
+        },
+        {
+          "name": "viewport-stable",
+          "pass": true,
+          "detail": "{\"before\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08},\"after\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08}}"
+        },
+        {
+          "name": "visible-mode-stable-flag",
+          "pass": true,
+          "detail": "visibleModeStable=true"
+        },
+        {
+          "name": "overview-contract-input-counts",
+          "pass": true,
+          "detail": "inputNodes=50/50 · inputEdges=78/78"
+        },
+        {
+          "name": "hidden-surface-has-dom-content",
+          "pass": true,
+          "detail": "renderedNodes=1 · renderedEdges=9"
+        },
+        {
+          "name": "download-file-name",
+          "pass": true,
+          "detail": "downloadFileName=diagram.jpg"
+        },
+        {
+          "name": "download-data-url-prefix",
+          "pass": true,
+          "detail": "prefix=data:image/jpeg;base64,/9j/4AAQS"
+        },
+        {
+          "name": "focus-request-falls-back-honestly",
+          "pass": true,
+          "detail": "visibleNodes=50 · overviewNodes=50"
+        },
+        {
+          "name": "viewport-equality-helper",
+          "pass": true,
+          "detail": "Comparación estructural del viewport visible antes/después."
+        }
+      ]
+    },
+    {
+      "state": "overview",
+      "requestedMode": "overview",
+      "expectedEffectiveMode": "overview",
+      "format": "svg",
+      "pass": true,
+      "evidence": {
+        "schemaVersion": "phase-8-overview-export-v1",
+        "status": "completed",
+        "job": {
+          "format": "svg",
+          "intent": "overview"
+        },
+        "exportSurface": "overview-hidden",
+        "requestedVisibleModeBefore": "overview",
+        "requestedVisibleModeAfter": "overview",
+        "effectiveVisibleModeBefore": "overview",
+        "effectiveVisibleModeAfter": "overview",
+        "workspaceViewModeBefore": "split",
+        "workspaceViewModeAfter": "split",
+        "visibleViewportBefore": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visibleViewportAfter": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visiblePresentedNodeCountBefore": 50,
+        "visiblePresentedEdgeCountBefore": 78,
+        "exportInputNodeCount": 50,
+        "exportInputEdgeCount": 78,
+        "overviewContractNodeCount": 50,
+        "overviewContractEdgeCount": 78,
+        "exportRenderedNodeCount": 1,
+        "exportRenderedEdgeCount": 9,
+        "viewportStable": true,
+        "visibleModeStable": true,
+        "downloadFileName": "diagram.svg",
+        "downloadDataUrlPrefix": "data:image/svg+xml;charset=utf-8",
+        "startedAt": "2026-04-27T20:29:08.124Z",
+        "completedAt": "2026-04-27T20:29:08.124Z",
+        "errorMessage": null
+      },
+      "checks": [
+        {
+          "name": "status-completed",
+          "pass": true,
+          "detail": "status=completed"
+        },
+        {
+          "name": "explicit-overview-intent",
+          "pass": true,
+          "detail": "intent=overview"
+        },
+        {
+          "name": "overview-hidden-surface",
+          "pass": true,
+          "detail": "surface=overview-hidden"
+        },
+        {
+          "name": "requested-mode-preserved",
+          "pass": true,
+          "detail": "requestedBefore=overview · requestedAfter=overview"
+        },
+        {
+          "name": "effective-mode-stable",
+          "pass": true,
+          "detail": "effectiveBefore=overview · effectiveAfter=overview"
+        },
+        {
+          "name": "viewport-stable",
+          "pass": true,
+          "detail": "{\"before\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08},\"after\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08}}"
+        },
+        {
+          "name": "visible-mode-stable-flag",
+          "pass": true,
+          "detail": "visibleModeStable=true"
+        },
+        {
+          "name": "overview-contract-input-counts",
+          "pass": true,
+          "detail": "inputNodes=50/50 · inputEdges=78/78"
+        },
+        {
+          "name": "hidden-surface-has-dom-content",
+          "pass": true,
+          "detail": "renderedNodes=1 · renderedEdges=9"
+        },
+        {
+          "name": "download-file-name",
+          "pass": true,
+          "detail": "downloadFileName=diagram.svg"
+        },
+        {
+          "name": "download-data-url-prefix",
+          "pass": true,
+          "detail": "prefix=data:image/svg+xml;charset=utf-8"
+        },
+        {
+          "name": "focus-request-falls-back-honestly",
+          "pass": true,
+          "detail": "visibleNodes=50 · overviewNodes=50"
+        },
+        {
+          "name": "viewport-equality-helper",
+          "pass": true,
+          "detail": "Comparación estructural del viewport visible antes/después."
+        }
+      ]
+    },
+    {
+      "state": "overview",
+      "requestedMode": "overview",
+      "expectedEffectiveMode": "overview",
+      "format": "png",
+      "pass": true,
+      "evidence": {
+        "schemaVersion": "phase-8-overview-export-v1",
+        "status": "completed",
+        "job": {
+          "format": "png",
+          "intent": "overview"
+        },
+        "exportSurface": "overview-hidden",
+        "requestedVisibleModeBefore": "overview",
+        "requestedVisibleModeAfter": "overview",
+        "effectiveVisibleModeBefore": "overview",
+        "effectiveVisibleModeAfter": "overview",
+        "workspaceViewModeBefore": "split",
+        "workspaceViewModeAfter": "split",
+        "visibleViewportBefore": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visibleViewportAfter": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visiblePresentedNodeCountBefore": 50,
+        "visiblePresentedEdgeCountBefore": 78,
+        "exportInputNodeCount": 50,
+        "exportInputEdgeCount": 78,
+        "overviewContractNodeCount": 50,
+        "overviewContractEdgeCount": 78,
+        "exportRenderedNodeCount": 1,
+        "exportRenderedEdgeCount": 9,
+        "viewportStable": true,
+        "visibleModeStable": true,
+        "downloadFileName": "diagram.png",
+        "downloadDataUrlPrefix": "data:image/png;base64,iVBORw0KGg",
+        "startedAt": "2026-04-27T20:29:08.519Z",
+        "completedAt": "2026-04-27T20:29:08.519Z",
+        "errorMessage": null
+      },
+      "checks": [
+        {
+          "name": "status-completed",
+          "pass": true,
+          "detail": "status=completed"
+        },
+        {
+          "name": "explicit-overview-intent",
+          "pass": true,
+          "detail": "intent=overview"
+        },
+        {
+          "name": "overview-hidden-surface",
+          "pass": true,
+          "detail": "surface=overview-hidden"
+        },
+        {
+          "name": "requested-mode-preserved",
+          "pass": true,
+          "detail": "requestedBefore=overview · requestedAfter=overview"
+        },
+        {
+          "name": "effective-mode-stable",
+          "pass": true,
+          "detail": "effectiveBefore=overview · effectiveAfter=overview"
+        },
+        {
+          "name": "viewport-stable",
+          "pass": true,
+          "detail": "{\"before\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08},\"after\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08}}"
+        },
+        {
+          "name": "visible-mode-stable-flag",
+          "pass": true,
+          "detail": "visibleModeStable=true"
+        },
+        {
+          "name": "overview-contract-input-counts",
+          "pass": true,
+          "detail": "inputNodes=50/50 · inputEdges=78/78"
+        },
+        {
+          "name": "hidden-surface-has-dom-content",
+          "pass": true,
+          "detail": "renderedNodes=1 · renderedEdges=9"
+        },
+        {
+          "name": "download-file-name",
+          "pass": true,
+          "detail": "downloadFileName=diagram.png"
+        },
+        {
+          "name": "download-data-url-prefix",
+          "pass": true,
+          "detail": "prefix=data:image/png;base64,iVBORw0KGg"
+        },
+        {
+          "name": "focus-request-falls-back-honestly",
+          "pass": true,
+          "detail": "visibleNodes=50 · overviewNodes=50"
+        },
+        {
+          "name": "viewport-equality-helper",
+          "pass": true,
+          "detail": "Comparación estructural del viewport visible antes/después."
+        }
+      ]
+    },
+    {
+      "state": "overview",
+      "requestedMode": "overview",
+      "expectedEffectiveMode": "overview",
+      "format": "jpeg",
+      "pass": true,
+      "evidence": {
+        "schemaVersion": "phase-8-overview-export-v1",
+        "status": "completed",
+        "job": {
+          "format": "jpeg",
+          "intent": "overview"
+        },
+        "exportSurface": "overview-hidden",
+        "requestedVisibleModeBefore": "overview",
+        "requestedVisibleModeAfter": "overview",
+        "effectiveVisibleModeBefore": "overview",
+        "effectiveVisibleModeAfter": "overview",
+        "workspaceViewModeBefore": "split",
+        "workspaceViewModeAfter": "split",
+        "visibleViewportBefore": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visibleViewportAfter": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visiblePresentedNodeCountBefore": 50,
+        "visiblePresentedEdgeCountBefore": 78,
+        "exportInputNodeCount": 50,
+        "exportInputEdgeCount": 78,
+        "overviewContractNodeCount": 50,
+        "overviewContractEdgeCount": 78,
+        "exportRenderedNodeCount": 1,
+        "exportRenderedEdgeCount": 9,
+        "viewportStable": true,
+        "visibleModeStable": true,
+        "downloadFileName": "diagram.jpg",
+        "downloadDataUrlPrefix": "data:image/jpeg;base64,/9j/4AAQS",
+        "startedAt": "2026-04-27T20:29:08.787Z",
+        "completedAt": "2026-04-27T20:29:08.787Z",
+        "errorMessage": null
+      },
+      "checks": [
+        {
+          "name": "status-completed",
+          "pass": true,
+          "detail": "status=completed"
+        },
+        {
+          "name": "explicit-overview-intent",
+          "pass": true,
+          "detail": "intent=overview"
+        },
+        {
+          "name": "overview-hidden-surface",
+          "pass": true,
+          "detail": "surface=overview-hidden"
+        },
+        {
+          "name": "requested-mode-preserved",
+          "pass": true,
+          "detail": "requestedBefore=overview · requestedAfter=overview"
+        },
+        {
+          "name": "effective-mode-stable",
+          "pass": true,
+          "detail": "effectiveBefore=overview · effectiveAfter=overview"
+        },
+        {
+          "name": "viewport-stable",
+          "pass": true,
+          "detail": "{\"before\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08},\"after\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08}}"
+        },
+        {
+          "name": "visible-mode-stable-flag",
+          "pass": true,
+          "detail": "visibleModeStable=true"
+        },
+        {
+          "name": "overview-contract-input-counts",
+          "pass": true,
+          "detail": "inputNodes=50/50 · inputEdges=78/78"
+        },
+        {
+          "name": "hidden-surface-has-dom-content",
+          "pass": true,
+          "detail": "renderedNodes=1 · renderedEdges=9"
+        },
+        {
+          "name": "download-file-name",
+          "pass": true,
+          "detail": "downloadFileName=diagram.jpg"
+        },
+        {
+          "name": "download-data-url-prefix",
+          "pass": true,
+          "detail": "prefix=data:image/jpeg;base64,/9j/4AAQS"
+        },
+        {
+          "name": "focus-request-falls-back-honestly",
+          "pass": true,
+          "detail": "visibleNodes=50 · overviewNodes=50"
+        },
+        {
+          "name": "viewport-equality-helper",
+          "pass": true,
+          "detail": "Comparación estructural del viewport visible antes/después."
+        }
+      ]
+    },
+    {
+      "state": "focus-request",
+      "requestedMode": "focus",
+      "expectedEffectiveMode": "full",
+      "format": "svg",
+      "pass": true,
+      "evidence": {
+        "schemaVersion": "phase-8-overview-export-v1",
+        "status": "completed",
+        "job": {
+          "format": "svg",
+          "intent": "overview"
+        },
+        "exportSurface": "overview-hidden",
+        "requestedVisibleModeBefore": "focus",
+        "requestedVisibleModeAfter": "focus",
+        "effectiveVisibleModeBefore": "full",
+        "effectiveVisibleModeAfter": "full",
+        "workspaceViewModeBefore": "split",
+        "workspaceViewModeAfter": "split",
+        "visibleViewportBefore": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visibleViewportAfter": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visiblePresentedNodeCountBefore": 50,
+        "visiblePresentedEdgeCountBefore": 78,
+        "exportInputNodeCount": 50,
+        "exportInputEdgeCount": 78,
+        "overviewContractNodeCount": 50,
+        "overviewContractEdgeCount": 78,
+        "exportRenderedNodeCount": 1,
+        "exportRenderedEdgeCount": 9,
+        "viewportStable": true,
+        "visibleModeStable": true,
+        "downloadFileName": "diagram.svg",
+        "downloadDataUrlPrefix": "data:image/svg+xml;charset=utf-8",
+        "startedAt": "2026-04-27T20:29:08.998Z",
+        "completedAt": "2026-04-27T20:29:08.998Z",
+        "errorMessage": null
+      },
+      "checks": [
+        {
+          "name": "status-completed",
+          "pass": true,
+          "detail": "status=completed"
+        },
+        {
+          "name": "explicit-overview-intent",
+          "pass": true,
+          "detail": "intent=overview"
+        },
+        {
+          "name": "overview-hidden-surface",
+          "pass": true,
+          "detail": "surface=overview-hidden"
+        },
+        {
+          "name": "requested-mode-preserved",
+          "pass": true,
+          "detail": "requestedBefore=focus · requestedAfter=focus"
+        },
+        {
+          "name": "effective-mode-stable",
+          "pass": true,
+          "detail": "effectiveBefore=full · effectiveAfter=full"
+        },
+        {
+          "name": "viewport-stable",
+          "pass": true,
+          "detail": "{\"before\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08},\"after\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08}}"
+        },
+        {
+          "name": "visible-mode-stable-flag",
+          "pass": true,
+          "detail": "visibleModeStable=true"
+        },
+        {
+          "name": "overview-contract-input-counts",
+          "pass": true,
+          "detail": "inputNodes=50/50 · inputEdges=78/78"
+        },
+        {
+          "name": "hidden-surface-has-dom-content",
+          "pass": true,
+          "detail": "renderedNodes=1 · renderedEdges=9"
+        },
+        {
+          "name": "download-file-name",
+          "pass": true,
+          "detail": "downloadFileName=diagram.svg"
+        },
+        {
+          "name": "download-data-url-prefix",
+          "pass": true,
+          "detail": "prefix=data:image/svg+xml;charset=utf-8"
+        },
+        {
+          "name": "focus-request-falls-back-honestly",
+          "pass": true,
+          "detail": "visibleNodes=50 · overviewNodes=50"
+        },
+        {
+          "name": "viewport-equality-helper",
+          "pass": true,
+          "detail": "Comparación estructural del viewport visible antes/después."
+        }
+      ]
+    },
+    {
+      "state": "focus-request",
+      "requestedMode": "focus",
+      "expectedEffectiveMode": "full",
+      "format": "png",
+      "pass": true,
+      "evidence": {
+        "schemaVersion": "phase-8-overview-export-v1",
+        "status": "completed",
+        "job": {
+          "format": "png",
+          "intent": "overview"
+        },
+        "exportSurface": "overview-hidden",
+        "requestedVisibleModeBefore": "focus",
+        "requestedVisibleModeAfter": "focus",
+        "effectiveVisibleModeBefore": "full",
+        "effectiveVisibleModeAfter": "full",
+        "workspaceViewModeBefore": "split",
+        "workspaceViewModeAfter": "split",
+        "visibleViewportBefore": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visibleViewportAfter": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visiblePresentedNodeCountBefore": 50,
+        "visiblePresentedEdgeCountBefore": 78,
+        "exportInputNodeCount": 50,
+        "exportInputEdgeCount": 78,
+        "overviewContractNodeCount": 50,
+        "overviewContractEdgeCount": 78,
+        "exportRenderedNodeCount": 1,
+        "exportRenderedEdgeCount": 9,
+        "viewportStable": true,
+        "visibleModeStable": true,
+        "downloadFileName": "diagram.png",
+        "downloadDataUrlPrefix": "data:image/png;base64,iVBORw0KGg",
+        "startedAt": "2026-04-27T20:29:09.358Z",
+        "completedAt": "2026-04-27T20:29:09.358Z",
+        "errorMessage": null
+      },
+      "checks": [
+        {
+          "name": "status-completed",
+          "pass": true,
+          "detail": "status=completed"
+        },
+        {
+          "name": "explicit-overview-intent",
+          "pass": true,
+          "detail": "intent=overview"
+        },
+        {
+          "name": "overview-hidden-surface",
+          "pass": true,
+          "detail": "surface=overview-hidden"
+        },
+        {
+          "name": "requested-mode-preserved",
+          "pass": true,
+          "detail": "requestedBefore=focus · requestedAfter=focus"
+        },
+        {
+          "name": "effective-mode-stable",
+          "pass": true,
+          "detail": "effectiveBefore=full · effectiveAfter=full"
+        },
+        {
+          "name": "viewport-stable",
+          "pass": true,
+          "detail": "{\"before\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08},\"after\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08}}"
+        },
+        {
+          "name": "visible-mode-stable-flag",
+          "pass": true,
+          "detail": "visibleModeStable=true"
+        },
+        {
+          "name": "overview-contract-input-counts",
+          "pass": true,
+          "detail": "inputNodes=50/50 · inputEdges=78/78"
+        },
+        {
+          "name": "hidden-surface-has-dom-content",
+          "pass": true,
+          "detail": "renderedNodes=1 · renderedEdges=9"
+        },
+        {
+          "name": "download-file-name",
+          "pass": true,
+          "detail": "downloadFileName=diagram.png"
+        },
+        {
+          "name": "download-data-url-prefix",
+          "pass": true,
+          "detail": "prefix=data:image/png;base64,iVBORw0KGg"
+        },
+        {
+          "name": "focus-request-falls-back-honestly",
+          "pass": true,
+          "detail": "visibleNodes=50 · overviewNodes=50"
+        },
+        {
+          "name": "viewport-equality-helper",
+          "pass": true,
+          "detail": "Comparación estructural del viewport visible antes/después."
+        }
+      ]
+    },
+    {
+      "state": "focus-request",
+      "requestedMode": "focus",
+      "expectedEffectiveMode": "full",
+      "format": "jpeg",
+      "pass": true,
+      "evidence": {
+        "schemaVersion": "phase-8-overview-export-v1",
+        "status": "completed",
+        "job": {
+          "format": "jpeg",
+          "intent": "overview"
+        },
+        "exportSurface": "overview-hidden",
+        "requestedVisibleModeBefore": "focus",
+        "requestedVisibleModeAfter": "focus",
+        "effectiveVisibleModeBefore": "full",
+        "effectiveVisibleModeAfter": "full",
+        "workspaceViewModeBefore": "split",
+        "workspaceViewModeAfter": "split",
+        "visibleViewportBefore": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visibleViewportAfter": {
+          "x": -595.98,
+          "y": -47.96000000000001,
+          "zoom": 0.08
+        },
+        "visiblePresentedNodeCountBefore": 50,
+        "visiblePresentedEdgeCountBefore": 78,
+        "exportInputNodeCount": 50,
+        "exportInputEdgeCount": 78,
+        "overviewContractNodeCount": 50,
+        "overviewContractEdgeCount": 78,
+        "exportRenderedNodeCount": 1,
+        "exportRenderedEdgeCount": 9,
+        "viewportStable": true,
+        "visibleModeStable": true,
+        "downloadFileName": "diagram.jpg",
+        "downloadDataUrlPrefix": "data:image/jpeg;base64,/9j/4AAQS",
+        "startedAt": "2026-04-27T20:29:09.697Z",
+        "completedAt": "2026-04-27T20:29:09.697Z",
+        "errorMessage": null
+      },
+      "checks": [
+        {
+          "name": "status-completed",
+          "pass": true,
+          "detail": "status=completed"
+        },
+        {
+          "name": "explicit-overview-intent",
+          "pass": true,
+          "detail": "intent=overview"
+        },
+        {
+          "name": "overview-hidden-surface",
+          "pass": true,
+          "detail": "surface=overview-hidden"
+        },
+        {
+          "name": "requested-mode-preserved",
+          "pass": true,
+          "detail": "requestedBefore=focus · requestedAfter=focus"
+        },
+        {
+          "name": "effective-mode-stable",
+          "pass": true,
+          "detail": "effectiveBefore=full · effectiveAfter=full"
+        },
+        {
+          "name": "viewport-stable",
+          "pass": true,
+          "detail": "{\"before\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08},\"after\":{\"x\":-595.98,\"y\":-47.96000000000001,\"zoom\":0.08}}"
+        },
+        {
+          "name": "visible-mode-stable-flag",
+          "pass": true,
+          "detail": "visibleModeStable=true"
+        },
+        {
+          "name": "overview-contract-input-counts",
+          "pass": true,
+          "detail": "inputNodes=50/50 · inputEdges=78/78"
+        },
+        {
+          "name": "hidden-surface-has-dom-content",
+          "pass": true,
+          "detail": "renderedNodes=1 · renderedEdges=9"
+        },
+        {
+          "name": "download-file-name",
+          "pass": true,
+          "detail": "downloadFileName=diagram.jpg"
+        },
+        {
+          "name": "download-data-url-prefix",
+          "pass": true,
+          "detail": "prefix=data:image/jpeg;base64,/9j/4AAQS"
+        },
+        {
+          "name": "focus-request-falls-back-honestly",
+          "pass": true,
+          "detail": "visibleNodes=50 · overviewNodes=50"
+        },
+        {
+          "name": "viewport-equality-helper",
+          "pass": true,
+          "detail": "Comparación estructural del viewport visible antes/después."
+        }
+      ]
+    }
+  ],
+  "browser": {
+    "pageErrors": [],
+    "consoleErrors": [],
+    "requestFailures": []
+  }
+}

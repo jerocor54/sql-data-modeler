@@ -40,6 +40,12 @@ import { useSyncDiagramCanvasTransientState } from '../features/diagram-canvas/d
 import { useDiagramCanvasModel } from '../features/diagram-canvas/useDiagramCanvasModel';
 import { OverviewExportSurface } from '../features/diagram-export/OverviewExportSurface';
 import {
+  DEV_DIAGRAM_EXPORT_EVIDENCE_KEY,
+  areDiagramExportViewportsEqual,
+  cloneDiagramExportViewport,
+  type DiagramExportDevEvidence,
+} from '../features/diagram-export/devExportEvidence';
+import {
   getOverviewVisibleEdgeIds,
   useDiagramPresentation,
   type DiagramFocusDepth,
@@ -107,6 +113,17 @@ function ensureSvgBackground(dataUrl: string, fillColor: string): string {
   } catch {
     return dataUrl;
   }
+}
+
+function publishDevDiagramExportEvidence(evidence: DiagramExportDevEvidence): void {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return;
+
+  Object.defineProperty(window, DEV_DIAGRAM_EXPORT_EVIDENCE_KEY, {
+    value: evidence,
+    configurable: true,
+    enumerable: false,
+    writable: false,
+  });
 }
 
 function normalize(value: string): string {
@@ -334,6 +351,15 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   const focusResetTimerRef = useRef<number | null>(null);
   const handledFocusViewportRequestRef = useRef(0);
   const tablePositionPersistenceRef = useRef<ReturnType<typeof createTablePositionPersistence> | null>(null);
+  const latestPresentationSnapshotRef = useRef<{
+    effectiveMode: DiagramPresentationMode;
+    requestedMode: DiagramPresentationMode | 'auto';
+    viewMode: ViewMode;
+  }>({
+    effectiveMode: 'full',
+    requestedMode: 'auto',
+    viewMode,
+  });
 
   useEffect(() => {
     if (!hasStoreHydrated || tablePositionPersistenceRef.current) return;
@@ -598,6 +624,14 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
   });
   useDevBrowserPerformanceExport(browserPerformanceSnapshot);
 
+  useEffect(() => {
+    latestPresentationSnapshotRef.current = {
+      effectiveMode: diagramPresentationMode,
+      requestedMode: requestedDiagramPresentationMode,
+      viewMode,
+    };
+  }, [diagramPresentationMode, requestedDiagramPresentationMode, viewMode]);
+
   useEffect(() => () => {
     if (focusResetTimerRef.current) window.clearTimeout(focusResetTimerRef.current);
   }, []);
@@ -751,16 +785,77 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
     async (job: DiagramExportJob) => {
       const exportTargetRef = job.intent === 'overview' ? overviewExportRef : exportRef;
       const exportNodes = job.intent === 'overview' ? nodes : presentedNodes;
+      const presentationBefore = latestPresentationSnapshotRef.current;
+      const visibleViewportBefore = cloneDiagramExportViewport(reactFlowRef.current?.getViewport() ?? null);
+      const createEvidence = (overrides: Partial<DiagramExportDevEvidence> = {}): DiagramExportDevEvidence => {
+        const currentPresentation = latestPresentationSnapshotRef.current;
+        const visibleViewportAfter = cloneDiagramExportViewport(reactFlowRef.current?.getViewport() ?? null);
+
+        return {
+          schemaVersion: 'phase-8-overview-export-v1',
+          status: 'started',
+          job,
+          exportSurface: 'overview-hidden',
+          requestedVisibleModeBefore: presentationBefore.requestedMode,
+          requestedVisibleModeAfter: currentPresentation.requestedMode,
+          effectiveVisibleModeBefore: presentationBefore.effectiveMode,
+          effectiveVisibleModeAfter: currentPresentation.effectiveMode,
+          workspaceViewModeBefore: presentationBefore.viewMode,
+          workspaceViewModeAfter: currentPresentation.viewMode,
+          visibleViewportBefore,
+          visibleViewportAfter,
+          visiblePresentedNodeCountBefore: presentedNodes.length,
+          visiblePresentedEdgeCountBefore: presentedEdges.length,
+          exportInputNodeCount: exportNodes.length,
+          exportInputEdgeCount: job.intent === 'overview' ? overviewPresentedEdges.length : presentedEdges.length,
+          overviewContractNodeCount: nodes.length,
+          overviewContractEdgeCount: overviewPresentedEdges.length,
+          exportRenderedNodeCount: 0,
+          exportRenderedEdgeCount: 0,
+          viewportStable: areDiagramExportViewportsEqual(visibleViewportBefore, visibleViewportAfter),
+          visibleModeStable:
+            presentationBefore.requestedMode === currentPresentation.requestedMode &&
+            presentationBefore.effectiveMode === currentPresentation.effectiveMode &&
+            presentationBefore.viewMode === currentPresentation.viewMode,
+          downloadFileName: null,
+          downloadDataUrlPrefix: null,
+          startedAt: new Date().toISOString(),
+          completedAt: null,
+          errorMessage: null,
+          ...overrides,
+        };
+      };
 
       if (!exportTargetRef.current) {
+        publishDevDiagramExportEvidence(
+          createEvidence({
+            completedAt: new Date().toISOString(),
+            errorMessage: 'No existe exportTargetRef para el job activo.',
+            status: 'failed',
+          }),
+        );
         setExportJob(null);
         return;
       }
 
+      publishDevDiagramExportEvidence(createEvidence());
+
       try {
         const { toJpeg, toPng, toSvg } = await loadHtmlToImageModule();
         const viewportEl = exportTargetRef.current.querySelector('.react-flow__viewport') as HTMLElement | null;
-        if (!viewportEl) return;
+        if (!viewportEl) {
+          publishDevDiagramExportEvidence(
+            createEvidence({
+              completedAt: new Date().toISOString(),
+              errorMessage: 'No existe .react-flow__viewport en el surface de export.',
+              status: 'failed',
+            }),
+          );
+          return;
+        }
+
+        const exportRenderedNodeCount = viewportEl.querySelectorAll('.react-flow__node').length;
+        const exportRenderedEdgeCount = viewportEl.querySelectorAll('.react-flow__edge').length;
 
         const hasNodes = exportNodes.length > 0;
         const fallbackWidth = Math.max(EXPORT_MIN_WIDTH, exportTargetRef.current.clientWidth);
@@ -799,6 +894,16 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
           const data = await toSvg(viewportEl, options);
           const withBackground = ensureSvgBackground(data, backgroundColor);
           downloadDataUrl('diagram.svg', withBackground);
+          publishDevDiagramExportEvidence(
+            createEvidence({
+              completedAt: new Date().toISOString(),
+              downloadDataUrlPrefix: withBackground.slice(0, 32),
+              downloadFileName: 'diagram.svg',
+              exportRenderedEdgeCount,
+              exportRenderedNodeCount,
+              status: 'completed',
+            }),
+          );
           return;
         }
 
@@ -808,6 +913,16 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
             pixelRatio: exportScale,
           });
           downloadDataUrl('diagram.png', data);
+          publishDevDiagramExportEvidence(
+            createEvidence({
+              completedAt: new Date().toISOString(),
+              downloadDataUrlPrefix: data.slice(0, 32),
+              downloadFileName: 'diagram.png',
+              exportRenderedEdgeCount,
+              exportRenderedNodeCount,
+              status: 'completed',
+            }),
+          );
           return;
         }
 
@@ -817,14 +932,31 @@ export default function ERDApp({ mode = 'app' }: ERDAppProps) {
           quality: 0.95,
         });
         downloadDataUrl('diagram.jpg', data);
+        publishDevDiagramExportEvidence(
+          createEvidence({
+            completedAt: new Date().toISOString(),
+            downloadDataUrlPrefix: data.slice(0, 32),
+            downloadFileName: 'diagram.jpg',
+            exportRenderedEdgeCount,
+            exportRenderedNodeCount,
+            status: 'completed',
+          }),
+        );
       } catch (error) {
+        publishDevDiagramExportEvidence(
+          createEvidence({
+            completedAt: new Date().toISOString(),
+            errorMessage: error instanceof Error ? error.message : String(error),
+            status: 'failed',
+          }),
+        );
         // eslint-disable-next-line no-console
         console.error('Error exportando diagrama:', error);
       } finally {
         setExportJob(null);
       }
     },
-    [exportScale, nodes, presentedNodes],
+    [exportScale, nodes, overviewPresentedEdges.length, presentedEdges.length, presentedNodes, presentedNodes.length],
   );
 
   useEffect(() => {

@@ -58,8 +58,8 @@ interface DiagramExportJob {
 | Layer | What to Test | Approach |
 |-------|-------------|----------|
 | Type validation | New overview export types and props stay consistent | Run `npx tsc --noEmit`. |
-| Manual integration | Export from visible `full`, `focus`, and `overview` modes still produces overview output | Manual browser verification using current export controls. |
-| Regression check | Visible mode, viewport, and focus state do not change during export | Manual verification while exporting from non-overview live modes. |
+| Browser integration | Export from visible `full`, `overview`, and `focus` request states still produces overview output for `SVG`, `PNG`, and `JPEG` | Run `npm run verify:overview-export` against the local DEV app; it loads the benchmark route, exercises the real controls, and persists a JSON report under `docs/performance-artifacts/export-slice/`. |
+| Regression check | Visible mode and viewport do not change during export | Reuse `npm run verify:overview-export`; the script reads DEV export evidence emitted by `ERDApp.tsx` and fails if requested/effective mode or the visible React Flow viewport changes during capture. |
 
 ## Migration / Rollout
 

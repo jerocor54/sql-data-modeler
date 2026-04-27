@@ -18,8 +18,8 @@
 ## Phase 4: Validation
 
 - [x] 4.1 Run `npx tsc --noEmit` to validate the overview export job types, hidden surface props, and ERD wiring.
-- [x] 4.2 Manually verify in the browser that exporting from live `full`, `focus`, and `overview` states still produces overview-intent output for `SVG`, `PNG`, and `JPEG` (current focus request without active signals falls back to full, and export remains stable there too).
-- [x] 4.3 Manually verify that export does not visibly switch the editor mode, jump the viewport, or claim any selection/area/schema export capability in this slice.
+- [x] 4.2 Add and run a repo-level Playwright DEV verification (`npm run verify:overview-export`) that exports from live `full`, `overview`, and `focus` request states and records reproducible JSON evidence for `SVG`, `PNG`, and `JPEG`.
+- [x] 4.3 Make the executable verification fail if export mutates the visible requested/effective mode, mutates the visible viewport, or claims any selection/area/schema export capability in this slice.
 
 ## Explicitly Out of Scope
 
