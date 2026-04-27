@@ -222,4 +222,4 @@ This keeps existing report locations stable while making pass/fail reasons repro
 - Snapshot seam: available now via `window.__SQL_DATA_MODELER_PERF__` in DEV.
 - Snapshot contract: documented now in `docs/browser-performance-snapshot-contract.md`.
 - Minimal local harness: available now via `npm run benchmark:browser`.
-- Enforced browser-backed gates or broader browser certification: still pending.
+- Enforced browser-backed gates for the current narrow benchmark-route scope are available now via `npm run benchmark:browser:assert`; broader browser certification (editor-wide UX, visual fidelity, cross-browser, production claims) remains pending.

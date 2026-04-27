@@ -39,17 +39,17 @@
         {
           "name": "generated-at-string",
           "pass": true,
-          "detail": "generatedAt=2026-04-26T16:15:47.368Z"
+          "detail": "generatedAt=2026-04-27T17:32:28.237Z"
         },
         {
           "name": "timings-readable",
           "pass": true,
-          "detail": "timings={\"parseMs\":231.2,\"layoutMs\":3010.2,\"renderApproxMs\":92269.70000000001,\"totalMs\":95511.1}"
+          "detail": "timings={\"parseMs\":206.8,\"layoutMs\":3114.4,\"renderApproxMs\":98235.40000000001,\"totalMs\":101556.6}"
         },
         {
           "name": "long-task-shape-readable",
           "pass": true,
-          "detail": "longTasks={\"supported\":true,\"count\":3,\"maxDuration\":92169,\"lastDuration\":94,\"lastObservedAt\":1777220147367}"
+          "detail": "longTasks={\"supported\":true,\"count\":3,\"maxDuration\":98127,\"lastDuration\":101,\"lastObservedAt\":1777311148236}"
         }
       ]
     },
@@ -64,7 +64,7 @@
         {
           "name": "total-usable-available",
           "pass": true,
-          "detail": "totalMs=95511.1"
+          "detail": "totalMs=101556.6"
         },
         {
           "name": "preset-table-count-match",
@@ -99,7 +99,7 @@
         {
           "name": "snapshot-total-ms-within-ceiling",
           "pass": true,
-          "detail": "totalMs=95511.1 · ceilingMs=120000"
+          "detail": "totalMs=101556.6 · ceilingMs=120000"
         },
         {
           "name": "snapshot-status-label-match",
@@ -136,12 +136,12 @@
   },
   "snapshot": {
     "schemaVersion": "phase-7-dev-v1",
-    "generatedAt": "2026-04-26T16:15:47.368Z",
+    "generatedAt": "2026-04-27T17:32:28.237Z",
     "timings": {
-      "parseMs": 231.2,
-      "layoutMs": 3010.2,
-      "renderApproxMs": 92269.70000000001,
-      "totalMs": 95511.1
+      "parseMs": 206.8,
+      "layoutMs": 3114.4,
+      "renderApproxMs": 98235.40000000001,
+      "totalMs": 101556.6
     },
     "graph": {
       "nodes": {
@@ -184,20 +184,20 @@
     "longTasks": {
       "supported": true,
       "count": 3,
-      "maxDuration": 92169,
-      "lastDuration": 94,
-      "lastObservedAt": 1777220147367
+      "maxDuration": 98127,
+      "lastDuration": 101,
+      "lastObservedAt": 1777311148236
     }
   },
   "evidence": {
     "snapshot": {
       "schemaVersion": "phase-7-dev-v1",
-      "generatedAt": "2026-04-26T16:15:47.368Z",
+      "generatedAt": "2026-04-27T17:32:28.237Z",
       "timings": {
-        "parseMs": 231.2,
-        "layoutMs": 3010.2,
-        "renderApproxMs": 92269.70000000001,
-        "totalMs": 95511.1
+        "parseMs": 206.8,
+        "layoutMs": 3114.4,
+        "renderApproxMs": 98235.40000000001,
+        "totalMs": 101556.6
       },
       "graph": {
         "nodes": {
@@ -240,9 +240,9 @@
       "longTasks": {
         "supported": true,
         "count": 3,
-        "maxDuration": 92169,
-        "lastDuration": 94,
-        "lastObservedAt": 1777220147367
+        "maxDuration": 98127,
+        "lastDuration": 101,
+        "lastObservedAt": 1777311148236
       }
     },
     "overlay": {

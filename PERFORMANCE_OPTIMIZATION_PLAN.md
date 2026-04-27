@@ -240,7 +240,7 @@ Cada fase se ejecuta así:
 | 4 | UX para modelos gigantes | **Cerrada en código con caveats de documentación** |
 | 5 | Memoria, cachés y payloads | **Cerrada con follow-ups explícitos ya resueltos** |
 | 6 | Astro shell, carga inicial y bundles | **Pausada honestamente — startup deferrals principales aplicadas; split de settings diferido** |
-| 7 | Observabilidad y reglas anti-regresión | **En curso — harness browser-backed mínimo operativo (`S` + `M`)** |
+| 7 | Observabilidad y reglas anti-regresión | **Cerrada con caveats explícitos** |
 | 8 | Exportación escalable y cierre | Pendiente |
 
 ---
@@ -736,7 +736,7 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
    - [x] tamaño del modelo
 3. Registrar long tasks. ✅ Cerrado en este slice con observación DEV-only degradable y resumen compacto en overlay.
 4. Registrar fallbacks activados. ✅ Cerrado en este slice con estado + diagnósticos visibles en overlay.
-5. Definir gates mínimos para no aceptar regresiones graves. ◑ Slice honesto actual: gate CLI sobre baseline versionado + budgets/gates browser-backed mínimos para `S` y `M` en `/sql-data-modeler/benchmark`; siguen pendientes los budgets/gates browser más amplios (UX/FPS/overlay general).
+5. Definir gates mínimos para no aceptar regresiones graves. ✅ Cerrado para el scope honesto actual: gate CLI sobre baseline versionado + budgets/gates browser-backed mínimos para `S` y `M` en `/sql-data-modeler/benchmark`.
 
 ## Validación
 
@@ -747,11 +747,12 @@ Sin observabilidad, tarde o temprano vamos a volver a romper performance sin dar
 - [x] la política del harness browser-backed futuro (ruta objetivo, timing de captura, categorías leídas y alcance honesto de gates) ya quedó documentada en `docs/browser-performance-harness-policy.md`.
 - [x] ya existe un harness browser-backed mínimo que valida `S` y `M` sobre `/sql-data-modeler/benchmark`, persiste reportes estables por preset y puede ejecutarse como workflow repo-level.
 - [x] ya existe una primera capa de browser-backed budget/fatal gates semánticos para `S` y `M` sobre la benchmark route.
+- [x] ya existe una base suficiente para detectar regresiones semánticas reales en CLI + benchmark route browser-backed.
 - [ ] seguimos sin gates browser-backed amplios para UX/FPS/overlay real.
 
 ## Criterio de salida
 
-La performance ya está gobernada y monitoreada.
+La performance ya está gobernada y monitoreada al nivel honesto de este plan: baseline CLI versionado, observabilidad DEV, harness browser-backed mínimo para `S`/`M`, y artefactos reproducibles. La certificación amplia de UX/FPS/browser general queda explícitamente fuera de este cierre.
 
 ### Slice honesto cerrado ahora
 
@@ -774,6 +775,13 @@ Este primer slice de Fase 7 deja resuelto SOLO lo siguiente:
 - cubrir UX/FPS/overlay general con budgets browser honestos, no inferidos desde CLI
 - ampliar el criterio de comparación repetible más allá de la evidencia CLI versionada y del harness mínimo actual
 - decidir si el siguiente paso real es endurecer budgets browser-backed o abrir Fase 8
+
+### Caveats explícitos que NO bloquean el pase a Fase 8
+
+- los gates browser-backed actuales cubren la benchmark route y los presets `S`/`M`, no toda la UX del editor
+- no hay garantías de FPS ni certificación visual/pixel-perfect
+- no hay claims de producción ni matriz cross-browser
+- los budgets browser siguen siendo coarse y semánticos, no una promesa de precisión machine-independent
 
 ### Slice honesto adicional cerrado ahora
 
